@@ -1,0 +1,7 @@
+node_modules/
+build/
+Web/dist/
+Web/quicklook/
+.DS_Store
+*.xcuserstate
+xcuserdata/

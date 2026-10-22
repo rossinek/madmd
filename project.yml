@@ -1,0 +1,92 @@
+name: madmd
+options:
+  bundleIdPrefix: app.madmd
+  deploymentTarget:
+    macOS: '14.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MACOSX_DEPLOYMENT_TARGET: '14.0'
+    CODE_SIGN_IDENTITY: '-'
+    CODE_SIGN_STYLE: Manual
+    ENABLE_HARDENED_RUNTIME: YES
+    MARKETING_VERSION: '0.1.3'
+    CURRENT_PROJECT_VERSION: '4'
+targets:
+  madmd:
+    type: application
+    platform: macOS
+    sources:
+      - App
+      - Shared
+      - path: QuickLook/PreviewViewController.swift
+      - path: Web/dist
+        type: folder
+        buildPhase: resources
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: madmd
+        CFBundleName: madmd
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+        CFBundleIconFile: madmd.icns
+        LSMinimumSystemVersion: '14.0'
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Markdown
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [net.daringfireball.markdown, public.markdown]
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeDescription: Markdown
+            UTTypeConformsTo: [public.plain-text]
+            UTTypeTagSpecification:
+              public.filename-extension: [md, markdown, mdown, mkdn, mkd, mdwn]
+              public.mime-type: text/markdown
+          - UTTypeIdentifier: public.markdown
+            UTTypeDescription: Markdown
+            UTTypeConformsTo: [public.plain-text]
+            UTTypeTagSpecification:
+              public.filename-extension: [md, markdown]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.madmd.mac
+        CODE_SIGN_ENTITLEMENTS: App/madmd.entitlements
+    dependencies:
+      - target: madmdQuickLook
+        embed: true
+  madmdQuickLook:
+    type: app-extension
+    platform: macOS
+    sources:
+      - QuickLook/PreviewViewController.swift
+      - Shared
+      - path: Web/quicklook/dist
+        type: folder
+        buildPhase: resources
+    info:
+      path: QuickLook/Info.plist
+      properties:
+        CFBundleDisplayName: madmd
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.preview
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PreviewViewController
+          NSExtensionAttributes:
+            QLIsDataBasedPreview: false
+            QLSupportedContentTypes: [net.daringfireball.markdown, public.markdown, com.unknown.md, io.typora.markdown, net.ia.markdown, com.nutstore.down]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.madmd.mac.quicklook
+        CODE_SIGN_ENTITLEMENTS: QuickLook/madmdQuickLook.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+schemes:
+  madmd:
+    build:
+      targets:
+        madmd: all
