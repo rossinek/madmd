@@ -55,6 +55,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
     @objc private func modeChanged(_ sender: NSSegmentedControl) { renderer.setMode(sender.selectedSegment == 0 ? "preview" : "edit") }
     func selectMode(_ index: Int) { tabs.selectedSegment = index; modeChanged(tabs) }
+    func find(_ action: NSTextFinder.Action) {
+        if tabs.selectedSegment == 0 { renderer.find(action) }
+        else {
+            let id = action == .nextMatch ? "editor.action.nextMatchFindAction" : action == .previousMatch ? "editor.action.previousMatchFindAction" : "actions.find"
+            renderer.action(id)
+        }
+    }
     func editorAction(_ id: String) { selectMode(1); renderer.action(id) }
     @objc func toggleTheme(_ sender: Any?) {
         UserDefaults.standard.set(!dark, forKey: "darkMode")

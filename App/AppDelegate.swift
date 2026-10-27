@@ -55,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func preview(_ sender: Any?) { active?.selectMode(0) }
     @objc func edit(_ sender: Any?) { active?.selectMode(1) }
     @objc func toggleTheme(_ sender: Any?) { active?.toggleTheme(sender) }
+    @objc func find(_ sender: NSMenuItem) { active?.find(NSTextFinder.Action(rawValue: sender.tag) ?? .showFindInterface) }
     @objc func editorAction(_ sender: NSMenuItem) { if let id = sender.representedObject as? String { active?.editorAction(id) } }
 
     @objc private func openRecent(_ sender: NSMenuItem) {
@@ -101,7 +102,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         editor("Undo", "undo", "z"); editor("Redo", "redo", "z", [.command, .shift])
         edit.addItem(.separator()); item(edit, "Cut", #selector(NSText.cut(_:)), "x"); item(edit, "Copy", #selector(NSText.copy(_:)), "c"); item(edit, "Paste", #selector(NSText.paste(_:)), "v"); item(edit, "Select All", #selector(NSText.selectAll(_:)), "a")
-        edit.addItem(.separator()); editor("Find…", "actions.find", "f"); editor("Replace…", "editor.action.startFindReplaceAction", "f", [.command, .option]); editor("Go to Line…", "editor.action.gotoLine", "l")
+        edit.addItem(.separator())
+        for (title, key, action, modifiers) in [("Find…", "f", NSTextFinder.Action.showFindInterface, NSEvent.ModifierFlags.command), ("Find Next", "g", .nextMatch, .command), ("Find Previous", "g", .previousMatch, [.command, .shift])] {
+            item(edit, title, #selector(find(_:)), key, modifiers: modifiers, target: self); edit.items.last?.tag = action.rawValue
+        }
+        editor("Replace…", "editor.action.startFindReplaceAction", "f", [.command, .option]); editor("Go to Line…", "editor.action.gotoLine", "l")
         let view = menu("View")
         item(view, "Preview", #selector(preview(_:)), "1", target: self); item(view, "Edit", #selector(self.edit(_:)), "2", target: self)
         view.addItem(.separator()); item(view, "Toggle Appearance", #selector(toggleTheme(_:)), "d", modifiers: [.command, .shift], target: self)
