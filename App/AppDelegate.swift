@@ -1,6 +1,6 @@
 import AppKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var documents: [DocumentWindowController] = []
     private var terminating = false
     var active: DocumentWindowController? { documents.first { $0.window?.isKeyWindow == true } ?? documents.last }
@@ -57,6 +57,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func toggleTheme(_ sender: Any?) { active?.toggleTheme(sender) }
     @objc func editorAction(_ sender: NSMenuItem) { if let id = sender.representedObject as? String { active?.editorAction(id) } }
 
+    @objc private func openRecent(_ sender: NSMenuItem) {
+        if let url = sender.representedObject as? URL { openFile(url) }
+    }
+    @objc private func clearRecent(_ sender: Any?) { NSDocumentController.shared.clearRecentDocuments(sender) }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        let urls = NSDocumentController.shared.recentDocumentURLs
+        for url in urls {
+            let item = NSMenuItem(title: url.lastPathComponent, action: #selector(openRecent(_:)), keyEquivalent: "")
+            item.target = self; item.representedObject = url; item.toolTip = url.path
+            menu.addItem(item)
+        }
+        if !urls.isEmpty { menu.addItem(.separator()) }
+        let clear = NSMenuItem(title: "Clear Menu", action: #selector(clearRecent(_:)), keyEquivalent: "")
+        clear.target = self; menu.addItem(clear)
+    }
+
     private func makeMenus() {
         let bar = NSMenu()
         func menu(_ title: String) -> NSMenu { let item = NSMenuItem(); let sub = NSMenu(title: title); item.submenu = sub; bar.addItem(item); return sub }
@@ -72,6 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let file = menu("File")
         item(file, "New", #selector(newDocument(_:)), "n", target: self)
         item(file, "Open…", #selector(openDocument(_:)), "o", target: self)
+        let recent = NSMenu(title: "Open Recent"); recent.delegate = self
+        let recentItem = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: ""); recentItem.submenu = recent
+        file.addItem(recentItem)
         file.addItem(.separator()); item(file, "Close", #selector(NSWindow.performClose(_:)), "w")
         item(file, "Save", #selector(saveDocument(_:)), "s", target: self)
         item(file, "Save As…", #selector(saveDocumentAs(_:)), "s", modifiers: [.command, .shift], target: self)
