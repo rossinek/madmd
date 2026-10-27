@@ -5,3 +5,4 @@ Web/quicklook/
 .DS_Store
 *.xcuserstate
 xcuserdata/
+.research/
