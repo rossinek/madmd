@@ -37,6 +37,11 @@ window.createMadmdEditor = async (source, theme, changed) => {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => window.webkit?.messageHandlers?.madmd?.postMessage({ type: 'save' }));
   window.madmdEditor = {
     getValue: () => editor.getValue(),
+    revealOffset(offset) {
+      const position = editor.getModel().getPositionAt(offset);
+      editor.setPosition(position); editor.revealPositionInCenter(position); editor.focus();
+    },
+    getPosition: () => editor.getPosition(),
     setValue(value) { if (value === editor.getValue()) return; replacing = true; editor.setValue(value); replacing = false; },
     setTheme: next => monaco.editor.setTheme(`madmd-${next}`),
     focus: () => editor.focus(), layout: () => editor.layout(),

@@ -34,6 +34,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         saveButton.target = self; saveButton.action = #selector(saveDocument(_:)); saveButton.bezelStyle = .texturedRounded; saveButton.toolTip = "Save (⌘S)"
         let toolbar = NSToolbar(identifier: "madmd.document"); toolbar.delegate = self; toolbar.displayMode = .iconOnly; toolbar.allowsUserCustomization = false
         toolbar.centeredItemIdentifiers = [NSToolbarItem.Identifier("mode")]; window.toolbar = toolbar
+        renderer.onEditSource = { [weak self] offset in
+            self?.tabs.selectedSegment = 1; self?.renderer.revealSource(offset)
+        }
         renderer.onChange = { [weak self] text in self?.text = text; self?.updateTitle() }
         renderer.onSave = { [weak self] in self?.saveDocument(nil) }
         renderer.onLink = { [weak self] url in self?.openLink(url) }

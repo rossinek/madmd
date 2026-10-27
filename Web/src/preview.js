@@ -5,6 +5,7 @@ const md = createRenderer();
 const preview = document.getElementById('preview');
 let source = '', mode = 'preview', theme = 'light', revision = 0, requestID = '';
 let editorPromise, diagramPromise;
+let sourceNavigation = false;
 let paintedSource, paintedTheme;
 const post = (type, data = {}) => window.webkit?.messageHandlers?.madmd?.postMessage({ type, ...data });
 const script = name => new Promise((resolve, reject) => {
@@ -44,7 +45,8 @@ function paint(force = false) {
   setTimeout(complete, 50);
 }
 window.madmd = {
-  async load(text, appearance = 'light', request = '', baseURL) {
+  async load(text, appearance = 'light', request = '', baseURL, canNavigate = false) {
+    sourceNavigation = canNavigate;
     if (baseURL) document.querySelector('base').href = baseURL;
     source = text; requestID = request; theme = appearance; document.documentElement.dataset.theme = theme;
     window.madmdEditor?.setTheme(theme);
@@ -66,6 +68,10 @@ window.madmd = {
       document.getElementById('editor').hidden = true; preview.hidden = false; paint();
     }
   },
+  async revealSource(offset) {
+    await this.setMode('edit');
+    window.madmdEditor?.revealOffset(offset);
+  },
   setTheme(next) {
     theme = next; document.documentElement.dataset.theme = next;
     window.madmdEditor?.setTheme(next);
@@ -81,6 +87,33 @@ window.madmd = {
     highlighted: preview.querySelectorAll('.hljs-keyword,.hljs-string').length,
     math: preview.querySelectorAll('.katex').length, html: preview.innerHTML }; }
 };
+function updateCommand(event) {
+  preview.classList.toggle('source-navigation', sourceNavigation && mode === 'preview' && event.metaKey);
+}
+document.addEventListener('keydown', updateCommand);
+document.addEventListener('keyup', updateCommand);
+document.addEventListener('mousemove', updateCommand);
+window.addEventListener('blur', () => preview.classList.remove('source-navigation'));
+preview.addEventListener('click', event => {
+  if (!sourceNavigation || !event.metaKey || mode !== 'preview') return;
+  const block = event.target.closest('[data-source-start]');
+  if (!block) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  const starts = [0];
+  for (const match of source.matchAll(/\r\n|\n|\r/g)) starts.push(match.index + match[0].length);
+  const start = starts[Number(block.dataset.sourceStart)] ?? 0;
+  const end = starts[Number(block.dataset.sourceEnd)] ?? source.length;
+  let offset = start;
+  const caret = document.caretRangeFromPoint?.(event.clientX, event.clientY);
+  const node = caret?.startContainer;
+  if (node?.nodeType === Node.TEXT_NODE && block.contains(node)) {
+    const text = node.textContent, fragment = source.slice(start, end);
+    const index = text.trim() ? fragment.indexOf(text) : -1;
+    if (index >= 0 && fragment.indexOf(text, index + 1) < 0) offset += index + caret.startOffset;
+  }
+  preview.classList.remove('source-navigation');
+  post('editSource', { offset });
+}, true);
 document.addEventListener('click', event => {
   const a = event.target.closest('a'); if (!a) return;
   event.preventDefault();

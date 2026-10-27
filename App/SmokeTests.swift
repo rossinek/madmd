@@ -72,7 +72,14 @@ enum SmokeTests {
             try check(try await js("return getComputedStyle(document.querySelector('.markdown-body')).backgroundColor === 'rgb(13, 17, 23)'") as? Bool == true, "Forced dark appearance")
             renderer.setTheme("light")
             try check(try await js("return getComputedStyle(document.querySelector('.markdown-body')).backgroundColor === 'rgb(255, 255, 255)'") as? Bool == true, "Forced light appearance")
-            _ = try await js("await window.madmd.setMode('edit'); return true")
+            _ = try await js("document.querySelector('#preview h1').dispatchEvent(new MouseEvent('click', {bubbles: true, metaKey: true})); return true")
+            for _ in 0..<100 {
+                if try await js("return !!window.madmdEditor") as? Bool == true { break }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            try check(try await js("return window.madmd.inspect().mode === 'edit' && window.madmdEditor.getPosition().lineNumber === 1") as? Bool == true, "Command-click opens the clicked source block")
+            _ = try await js("await window.madmd.revealSource(4); return true")
+            try check(try await js("return window.madmdEditor.getPosition().column === 5") as? Bool == true, "Source navigation preserves character offset")
             try check(try await js("return !!window.madmdEditor && !!document.querySelector('.monaco-editor') && document.querySelector('.monaco-editor').clientHeight > 100") as? Bool == true, "Monaco opens with layout and styles")
             try check(try await js("return !!window.MonacoEnvironment.getWorker()") as? Bool == true, "Monaco Web Worker starts")
             _ = try await js("window.madmdEditor.testEdit('# Changed'); return true")

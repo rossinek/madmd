@@ -72,3 +72,27 @@ test('large ordinary document rendering remains bounded', () => {
   assert.ok(html.length > source.length);
   assert.ok(performance.now() - start < 3000);
 });
+
+
+test('source locations preserve HTML containers spanning Markdown blocks', () => {
+  const doc = render('<details><summary>A little more</summary>\n\n**Bold**, *italic*, ~~strikethrough~~, <sub>subscript</sub>, and <sup>superscript</sup>.\n\n</details>\n\nOutside.');
+  const details = doc.querySelector('details');
+  assert.equal(details.querySelector('summary').textContent, 'A little more');
+  assert.equal(details.querySelector('p strong').textContent, 'Bold');
+  assert.ok(details.querySelector('p em'));
+  assert.ok(details.querySelector('p s'));
+  assert.ok(details.querySelector('p sub'));
+  assert.ok(details.querySelector('p sup'));
+  assert.equal(doc.body.lastElementChild.textContent, 'Outside.');
+  assert.equal(doc.querySelectorAll('div').length, 0);
+});
+
+test('source locations do not introduce wrappers around blocks or split raw HTML', () => {
+  const doc = render('<section>\n<details><summary>Nested</summary>\n\n- First\n- Second\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n```js\nconst x = 1;\n```\n\n</details>\n</section>\n\n---');
+  assert.ok(doc.querySelector('body > section > details > ul > li'));
+  assert.ok(doc.querySelector('body > section > details > table > tbody > tr'));
+  assert.ok(doc.querySelector('body > section > details > pre > code'));
+  assert.ok(doc.querySelector('body > hr'));
+  assert.equal(doc.querySelectorAll('div').length, 0);
+  assert.equal(doc.querySelector('pre').dataset.sourceStart, '10');
+});

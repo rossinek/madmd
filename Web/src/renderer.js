@@ -59,5 +59,30 @@ export function createRenderer() {
       inline.children.unshift(label);
     }
   });
+  // Preserve block locations from the parser, including rules with custom HTML output.
+  const render = md.renderer.render.bind(md.renderer);
+  md.renderer.render = (tokens, options, env) => {
+    for (const token of tokens) {
+      if (!token.map || token.hidden || token.type === 'inline') continue;
+      const [start, end] = token.map;
+      if (token.nesting === 1) {
+        token.attrSet('data-source-start', String(start)); token.attrSet('data-source-end', String(end));
+      } else if (token.nesting === 0) {
+        const original = md.renderer.rules[token.type] ?? ((ts, i, opts, e, self) => self.renderToken(ts, i, opts));
+        if (!original.sourceMapped) {
+          const mapped = (ts, i, opts, e, self) => {
+            const html = original(ts, i, opts, e, self), map = ts[i].map;
+            // Add metadata to an existing root element; never introduce a
+            // wrapper. Tokens may contain only half of an HTML container,
+            // and extra elements also change CSS/layout for code and math.
+            return map ? html.replace(/^(\s*<[a-z][\w:-]*)(?=[\s/>])/i,
+              `$1 data-source-start="${map[0]}" data-source-end="${map[1]}"`) : html;
+          };
+          mapped.sourceMapped = true; md.renderer.rules[token.type] = mapped;
+        }
+      }
+    }
+    return render(tokens, options, env);
+  };
   return md;
 }

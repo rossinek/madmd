@@ -64,6 +64,7 @@ final class MarkdownWebView: NSView, WKNavigationDelegate, NSSearchFieldDelegate
     private var requestID = UUID().uuidString
     private var hasContent = false
     private var pendingMode = "preview"
+    var onEditSource: ((Int) -> Void)?
     var onChange: ((String) -> Void)?
     var onSave: (() -> Void)?
     var onLink: ((URL) -> Void)?
@@ -100,7 +101,7 @@ final class MarkdownWebView: NSView, WKNavigationDelegate, NSSearchFieldDelegate
     }
     private func sendContent() {
         let request = requestID
-        webView.callAsyncJavaScript("await window.madmd.load(text, theme, request, baseURL); await window.madmd.setMode(mode)", arguments: ["text": pendingText, "theme": theme, "request": requestID, "mode": pendingMode, "baseURL": scheme.documentBaseURL], in: nil, in: .page) { [weak self] result in
+        webView.callAsyncJavaScript("await window.madmd.load(text, theme, request, baseURL, canNavigate); await window.madmd.setMode(mode)", arguments: ["text": pendingText, "theme": theme, "request": requestID, "mode": pendingMode, "baseURL": scheme.documentBaseURL, "canNavigate": onEditSource != nil], in: nil, in: .page) { [weak self] result in
             guard let self, self.requestID == request else { return }
             if case .failure(let error) = result { self.onError?(error) }
         }
@@ -121,6 +122,10 @@ final class MarkdownWebView: NSView, WKNavigationDelegate, NSSearchFieldDelegate
         guard ready else { return }
         webView.callAsyncJavaScript("await window.madmd.setMode('edit'); window.madmd.action(id)", arguments: ["id": id], in: nil, in: .page, completionHandler: nil)
     }
+    func revealSource(_ offset: Int) {
+        pendingMode = "edit"; find(.hideFindInterface)
+        webView.callAsyncJavaScript("await window.madmd.revealSource(offset)", arguments: ["offset": offset], in: nil, in: .page, completionHandler: nil)
+    }
     func markSaved() {
         guard ready else { return }
         webView.callAsyncJavaScript("window.madmd.markSaved()", in: nil, in: .page, completionHandler: nil)
@@ -140,6 +145,7 @@ final class MarkdownWebView: NSView, WKNavigationDelegate, NSSearchFieldDelegate
         switch type {
         case "ready": ready = true; if hasContent { sendContent() }
         case "changed": if let text = body["text"] as? String { pendingText = text; onChange?(text) }
+        case "editSource": if let offset = body["offset"] as? Int { onEditSource?(offset) }
         case "save": onSave?()
         case "link": if let href = body["href"] as? String, let url = URL(string: href) { onLink?(url) }
         case "rendered": if hasContent && body["request"] as? String == requestID { onRender?(requestID); onRendered?() }
