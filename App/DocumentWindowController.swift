@@ -168,7 +168,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         if ["https", "http", "mailto", "tel"].contains(url.scheme?.lowercased() ?? "") { NSWorkspace.shared.open(url) }
         else if let local = renderer.scheme.documentURL(for: url) {
             if ["md", "markdown", "mdown", "mkd", "mkdn", "mdwn"].contains(local.pathExtension.lowercased()) { (NSApp.delegate as? AppDelegate)?.openFile(local) }
-            else { NSWorkspace.shared.open(local) }
+            // Never open or run other local files: only show them in Finder.
+            else { NSWorkspace.shared.activateFileViewerSelecting([local]) }
         }
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { [.flexibleSpace, .init("mode"), .init("theme"), .init("save")] }

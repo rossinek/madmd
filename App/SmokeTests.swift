@@ -29,16 +29,32 @@ enum SmokeTests {
             let outside = directory.deletingLastPathComponent().appendingPathComponent("madmd-outside-\(UUID().uuidString)")
             try FileManager.default.createSymbolicLink(at: directory.appendingPathComponent("escape"), withDestinationURL: outside)
             try check(AssetSchemeHandler.resolve(path: "/escape/image.png", within: directory) == nil, "Symlink escapes blocked")
-            let repo = directory.appendingPathComponent("repo")
-            let docs = repo.appendingPathComponent("docs")
-            try FileManager.default.createDirectory(at: repo.appendingPathComponent(".git"), withIntermediateDirectories: true)
-            try FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
-            let repositoryImageData = Data("repository image".utf8)
-            try repositoryImageData.write(to: repo.appendingPathComponent("image.png"))
-            let scheme = AssetSchemeHandler(bundle: .main); scheme.documentDirectory = docs
-            try check(scheme.documentBaseURL == "madmd://document/docs/", "Repository-relative document base")
-            let resolvedImage = scheme.documentURL(for: URL(string: "madmd://document/image.png")!)
-            try check(resolvedImage != nil && (try? Data(contentsOf: resolvedImage!)) == repositoryImageData, "Parent-folder image paths stay inside repository")
+            let notes = directory.appendingPathComponent("notes")
+            try FileManager.default.createDirectory(at: notes.appendingPathComponent(".github"), withIntermediateDirectories: true)
+            let scheme = AssetSchemeHandler(bundle: .main); scheme.documentDirectory = notes
+            try check(scheme.documentBaseURL == "madmd://document" + notes.standardizedFileURL.path + "/", "Document base is the absolute document folder")
+            let imageData = Data("parent image".utf8)
+            try imageData.write(to: directory.appendingPathComponent("parent.png"))
+            try check(try MediaPolicy.open(path: directory.appendingPathComponent("parent.png").path).handle.readToEnd() == imageData, "Media outside the document folder loads")
+            try imageData.write(to: notes.appendingPathComponent(".github/logo.png"))
+            try check((try? MediaPolicy.open(path: notes.appendingPathComponent(".github/logo.png").path)) != nil, "Media in hidden folders loads")
+            let secret = directory.appendingPathComponent("secret.txt")
+            try Data("secret".utf8).write(to: secret)
+            func blocked(_ path: String) -> Bool { do { _ = try MediaPolicy.open(path: path); return false } catch { return (error as? CocoaError)?.code == MediaPolicy.blocked.code } }
+            try check(blocked(secret.path), "Non-media files are refused")
+            try FileManager.default.createSymbolicLink(at: notes.appendingPathComponent("disguised.png"), withDestinationURL: secret)
+            try check(blocked(notes.appendingPathComponent("disguised.png").path), "Media symlinks to other files are refused")
+            try FileManager.default.createDirectory(at: notes.appendingPathComponent("folder.png"), withIntermediateDirectories: true)
+            try check(blocked(notes.appendingPathComponent("folder.png").path), "Only regular files are served")
+            let huge = notes.appendingPathComponent("huge.png")
+            FileManager.default.createFile(atPath: huge.path, contents: nil)
+            try FileHandle(forWritingTo: huge).truncate(atOffset: UInt64(MediaPolicy.sizeLimit + 1))
+            try check((try? MediaPolicy.open(path: huge.path)) == nil, "Oversized images are refused")
+            let fallback = FallbackResourceReader(readers: [DeniedReader(), DirectResourceReader()])
+            try check(try await fallback.open(path: directory.appendingPathComponent("parent.png").path).length == imageData.count, "Denied reads fall back to the next reader")
+            try check(AssetSchemeHandler.byteRange("bytes=2-5", length: 10) == 2..<6 && AssetSchemeHandler.byteRange("bytes=-3", length: 10) == 7..<10
+                      && AssetSchemeHandler.byteRange("bytes=8-", length: 10) == 8..<10 && AssetSchemeHandler.byteRange("bytes=12-", length: 10)?.isEmpty == true
+                      && AssetSchemeHandler.byteRange(nil, length: 10) == nil, "Range headers parse")
             let controller = DocumentWindowController(file: file)
             let closeAlert = controller.closeAlert()
             try check(closeAlert.buttons.map(\.title) == ["Cancel", "Save & Quit", "Quit Anyway"], "Close dialog has exactly the requested options")
@@ -62,6 +78,27 @@ enum SmokeTests {
             try check(try await js("return !window.pwned && !document.querySelector('#preview script')") as? Bool == true, "Embedded scripts blocked")
             try await Task.sleep(for: .milliseconds(200))
             try check(try await js("return document.querySelector('#preview img').naturalWidth === 12") as? Bool == true, "Relative image loaded")
+            let subtitles = directory.appendingPathComponent("captions.vtt")
+            let subtitleData = Data("WEBVTT\n\n00:00.000 --> 00:01.000\nHello".utf8)
+            try subtitleData.write(to: subtitles)
+            func serve(_ path: String, range: String? = nil) async -> RecordingTask {
+                var request = URLRequest(url: URL(string: "madmd://document" + path)!); request.setValue(range, forHTTPHeaderField: "Range")
+                let task = RecordingTask(request: request); renderer.scheme.webView(renderer.webView, start: task)
+                for _ in 0..<100 where !task.done { try? await Task.sleep(for: .milliseconds(20)) }
+                return task
+            }
+            let ranged = await serve(subtitles.path, range: "bytes=0-5")
+            try check(ranged.response?.statusCode == 206 && ranged.response?.value(forHTTPHeaderField: "Content-Range") == "bytes 0-5/\(subtitleData.count)" && ranged.data == Data("WEBVTT".utf8), "Range requests return 206 with the requested bytes")
+            let whole = await serve(subtitles.path)
+            try check(whole.response?.statusCode == 200 && whole.data == subtitleData, "Requests without Range return the whole file")
+            let unsatisfiable = await serve(subtitles.path, range: "bytes=99-")
+            try check(unsatisfiable.response?.statusCode == 416, "Unsatisfiable ranges return 416")
+            let refused = await serve(secret.path)
+            try check(refused.error != nil && refused.response == nil, "Preview cannot load non-media files")
+            let stopped = RecordingTask(request: URLRequest(url: URL(string: "madmd://document" + subtitles.path)!))
+            renderer.scheme.webView(renderer.webView, start: stopped); renderer.scheme.webView(renderer.webView, stop: stopped)
+            try await Task.sleep(for: .milliseconds(200))
+            try check(stopped.response == nil && !stopped.done, "Stopped requests receive nothing")
             controller.find(.showFindInterface)
             try await Task.sleep(for: .milliseconds(200))
             try check(renderer.isFindBarVisible && renderer.findBarView != nil, "Native preview find bar opens")
@@ -129,6 +166,19 @@ enum SmokeTests {
                 }
                 try check(found, "\(kind) renders in WebKit")
             }
+            let nested = MarkdownWebView()
+            let nestedWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+            nestedWindow.contentView = nested; nestedWindow.orderFront(nil)
+            var nestedRendered = false; nested.onRendered = { nestedRendered = true }
+            nested.load(text: "![parent](../pixel.svg)", fileURL: notes.appendingPathComponent("nested.md"), theme: "light")
+            for _ in 0..<200 where !nestedRendered { try await Task.sleep(for: .milliseconds(50)) }
+            var parentLoaded = false
+            for _ in 0..<40 where !parentLoaded {
+                parentLoaded = try await nested.webView.callAsyncJavaScript("return document.querySelector('#preview img')?.naturalWidth === 12", arguments: [:], in: nil, contentWorld: .page) as? Bool == true
+                if !parentLoaded { try await Task.sleep(for: .milliseconds(50)) }
+            }
+            try check(parentLoaded, "Images from parent folders load in the preview")
+            nestedWindow.orderOut(nil)
             let quickLook = PreviewViewController(); quickLook.loadViewIfNeeded()
             let qlWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 720), styleMask: [.titled], backing: .buffered, defer: false)
             qlWindow.contentViewController = quickLook; qlWindow.orderFront(nil)
@@ -177,4 +227,21 @@ enum SmokeTests {
             exit(1)
         }
     }
+}
+
+private struct DeniedReader: DocumentResourceReader {
+    func open(path: String) async throws -> DocumentResource { throw POSIXError(.EPERM) }
+}
+
+private final class RecordingTask: NSObject, WKURLSchemeTask {
+    let request: URLRequest
+    var response: HTTPURLResponse?
+    var data = Data()
+    var error: Error?
+    var done = false
+    init(request: URLRequest) { self.request = request }
+    func didReceive(_ response: URLResponse) { self.response = response as? HTTPURLResponse }
+    func didReceive(_ data: Data) { self.data += data }
+    func didFinish() { done = true }
+    func didFailWithError(_ error: Error) { self.error = error; done = true }
 }

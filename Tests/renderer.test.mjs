@@ -96,3 +96,12 @@ test('source locations do not introduce wrappers around blocks or split raw HTML
   assert.equal(doc.querySelectorAll('div').length, 0);
   assert.equal(doc.querySelector('pre').dataset.sourceStart, '10');
 });
+test('remote media sources are dropped only next to local ones', () => {
+  const mixed = render('<video controls><source src="clip.mp4" type="video/mp4"><source src="https://example.com/probe.mp4"><track src="clip.vtt"></video>');
+  assert.deepEqual([...mixed.querySelectorAll('source')].map(s => s.getAttribute('src')), ['clip.mp4']);
+  assert.equal(mixed.querySelectorAll('track').length, 1);
+  const audio = render('<audio src="sound.mp3"><source src="https://example.com/a.mp3"></audio>');
+  assert.equal(audio.querySelectorAll('source').length, 0);
+  const remote = render('<video><source src="https://example.com/a.mp4"><source src="https://example.com/b.webm"></video>');
+  assert.equal(remote.querySelectorAll('source').length, 2);
+});
