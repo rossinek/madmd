@@ -42,6 +42,8 @@ targets:
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
         CFBundleIconFile: madmd.icns
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.productivity
         LSMinimumSystemVersion: '14.0'
         CFBundleDocumentTypes:
           - CFBundleTypeName: Markdown
@@ -70,6 +72,19 @@ targets:
     dependencies:
       - target: madmdQuickLook
         embed: true
+      - target: madmdHelper
+        embed: false
+    postBuildScripts:
+      - name: Embed helper in App Store builds
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          items="$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Library/LoginItems"
+          rm -rf "$items"
+          if [[ "$CONFIGURATION" == AppStore ]]; then
+            mkdir -p "$items"
+            ditto "$BUILT_PRODUCTS_DIR/madmdHelper.app" "$items/madmdHelper.app"
+          fi
   madmdQuickLook:
     type: app-extension
     platform: macOS
@@ -101,6 +116,26 @@ targets:
       configs:
         AppStore:
           CODE_SIGN_ENTITLEMENTS: QuickLook/madmdQuickLook-appstore.entitlements
+  madmdHelper:
+    type: application
+    platform: macOS
+    sources:
+      - Helper
+    info:
+      path: Helper/Info.plist
+      properties:
+        CFBundleDisplayName: madmd Helper
+        CFBundleName: madmdHelper
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSUIElement: true
+        LSMinimumSystemVersion: '14.0'
+        NSPrincipalClass: NSApplication
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: H7B584W2D6.app.madmd.helper
+        CODE_SIGN_ENTITLEMENTS: Helper/madmdHelper.entitlements
+        SKIP_INSTALL: YES
 schemes:
   madmd:
     build:

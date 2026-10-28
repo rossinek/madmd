@@ -1,11 +1,11 @@
 #!/bin/bash
-# usage: build-appstore.sh [archive] [xcodebuild arguments...]
-# Without "archive", builds the sandboxed App Store configuration signed for development.
-# With "archive", also exports a package for App Store Connect (needs distribution profiles).
+# usage: build-appstore.sh [archive|upload] [xcodebuild arguments...]
+# Without a mode, builds the sandboxed App Store configuration signed for development.
+# With "archive", also exports a package for App Store Connect; "upload" sends it there instead.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mode=build
-if [[ "${1:-}" == archive ]]; then mode=archive; shift; fi
+if [[ "${1:-}" == archive || "${1:-}" == upload ]]; then mode=$1; shift; fi
 npm run build:web
 xcodegen generate
 if [[ "$mode" == build ]]; then
@@ -25,8 +25,9 @@ cat > "$options" <<PLIST
 <key>method</key><string>app-store-connect</string>
 <key>teamID</key><string>H7B584W2D6</string>
 <key>signingStyle</key><string>automatic</string>
+<key>destination</key><string>$([[ "$mode" == upload ]] && echo upload || echo export)</string>
 </dict></plist>
 PLIST
-xcodebuild -project madmd.xcodeproj -scheme madmd -configuration AppStore -derivedDataPath build archive -archivePath "$archive" "$@"
+xcodebuild -project madmd.xcodeproj -scheme madmd -configuration AppStore -derivedDataPath build archive -archivePath "$archive" CODE_SIGN_STYLE=Automatic PROVISIONING_PROFILE_REQUIRED=YES -allowProvisioningUpdates "$@"
 xcodebuild -exportArchive -archivePath "$archive" -exportPath "$export_dir" -exportOptionsPlist "$options" -allowProvisioningUpdates
-echo "Exported: $export_dir"
+echo "Done ($mode): $export_dir"

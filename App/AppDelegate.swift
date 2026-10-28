@@ -83,6 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let app = menu("madmd")
         item(app, "About madmd", #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
+        #if APP_STORE
+        app.addItem(.separator()); item(app, "Full Previews", #selector(toggleFullPreviews(_:)), target: self)
+        #endif
         app.addItem(.separator()); item(app, "Hide madmd", #selector(NSApplication.hide(_:)), "h")
         item(app, "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", modifiers: [.command, .option])
         item(app, "Show All", #selector(NSApplication.unhideAllApplications(_:)))
