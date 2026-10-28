@@ -121,6 +121,8 @@ targets:
     platform: macOS
     sources:
       - Helper
+      - Shared/HelperChannel.swift
+      - Shared/DocumentResourceReader.swift
     info:
       path: Helper/Info.plist
       properties:

@@ -13,7 +13,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         NSApp.activate(ignoringOtherApps: true)
         if documents.isEmpty { newDocument(nil) }
+        #if APP_STORE
+        Task { await FullPreviews.shared.refreshHelper(); await FullPreviews.shared.showOnboardingIfNeeded() }
+        #endif
     }
+    #if APP_STORE
+    @MainActor @objc func showSettings(_ sender: Any?) { FullPreviews.shared.showSettings() }
+    #endif
     func application(_ application: NSApplication, open urls: [URL]) { for url in urls { openFile(url) } }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { if !flag { newDocument(nil) }; return true }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -89,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let app = menu("madmd")
         item(app, "About madmd", #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
         #if APP_STORE
-        app.addItem(.separator()); item(app, "Full Previews", #selector(toggleFullPreviews(_:)), target: self)
+        app.addItem(.separator()); item(app, "Settings…", #selector(showSettings(_:)), ",", target: self)
         #endif
         app.addItem(.separator()); item(app, "Hide madmd", #selector(NSApplication.hide(_:)), "h")
         item(app, "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", modifiers: [.command, .option])

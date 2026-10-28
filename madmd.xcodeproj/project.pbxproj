@@ -7,8 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00C6C4250C9E7F92DC11913B /* HelperChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5751AA82E9B10016028E1C6 /* HelperChannel.swift */; };
 		10DA270A13B9E380D7613EFC /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8EA70E2DEE598498B1A13D /* main.swift */; };
 		244DDCCB99798D111D5D3489 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6B6E5196B713F152FEF3D7BE /* PrivacyInfo.xcprivacy */; };
+		3E1392C10D633F4F36C8F986 /* DocumentResourceReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EDAE0D8EA006D1DAE07DF7A /* DocumentResourceReader.swift */; };
 		62CC3B64EC09C9FD8A993F72 /* madmdQuickLook.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A4F71F3A367B6F32CF5F0518 /* madmdQuickLook.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		66E6CE88D737F6B06EDE32D4 /* MarkdownFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF5A1CE4AB560A3A1AEB34A6 /* MarkdownFile.swift */; };
 		6B7F0CF795D94C1FAF26A5E9 /* DocumentResourceReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EDAE0D8EA006D1DAE07DF7A /* DocumentResourceReader.swift */; };
@@ -19,6 +21,7 @@
 		8650FF4E6C6453378B01C331 /* madmd.icns in Resources */ = {isa = PBXBuildFile; fileRef = FBA71EB18D8F6C96053044B0 /* madmd.icns */; };
 		99FC24092E2C663FAC3A53C7 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB29F41CFBE635A33D14EE0 /* PreviewViewController.swift */; };
 		A9AC13031CAF4DFA7CEC1ABD /* AssetSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C59DE530C516EE95BCB33D47 /* AssetSchemeHandler.swift */; };
+		ACB8417AFE9C1EA3BB8B68D2 /* HelperChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5751AA82E9B10016028E1C6 /* HelperChannel.swift */; };
 		ADC55ABA94A52884EA763736 /* MarkdownFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF5A1CE4AB560A3A1AEB34A6 /* MarkdownFile.swift */; };
 		AF99519A713BB2C6DA55C472 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 54E3D82163E51A4E33F47EA4 /* PrivacyInfo.xcprivacy */; };
 		BF5EA8BA613075EAE59C4B5F /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BEAE5CCFEB7E3769CB4E85 /* main.swift */; };
@@ -28,6 +31,7 @@
 		DCA4972368B768EA05D09640 /* DocumentWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A349F487FC6425169E1D2D3 /* DocumentWindowController.swift */; };
 		E9BC7E455A8A3A8B84985CC5 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398779BEAF70CB83EDA3A6B0 /* AppDelegate.swift */; };
 		EED56E42C4129A6476992283 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB29F41CFBE635A33D14EE0 /* PreviewViewController.swift */; };
+		F5D4AC08CBA6BA0DEF3F310D /* HelperChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5751AA82E9B10016028E1C6 /* HelperChannel.swift */; };
 		FAB525566BA2A83335327336 /* AssetSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C59DE530C516EE95BCB33D47 /* AssetSchemeHandler.swift */; };
 		FD33EB879C347749F2429819 /* SandboxAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB91E669DC92177294D4DC7 /* SandboxAccess.swift */; };
 		FE6DDD2C1279D8A133BC4F48 /* MarkdownWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74EAB7AE78D92EDF0BAEDB2 /* MarkdownWebView.swift */; };
@@ -83,6 +87,7 @@
 		9A349F487FC6425169E1D2D3 /* DocumentWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWindowController.swift; sourceTree = "<group>"; };
 		9A8EA70E2DEE598498B1A13D /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A4F71F3A367B6F32CF5F0518 /* madmdQuickLook.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = madmdQuickLook.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A5751AA82E9B10016028E1C6 /* HelperChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelperChannel.swift; sourceTree = "<group>"; };
 		B0BEAE5CCFEB7E3769CB4E85 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		B74EAB7AE78D92EDF0BAEDB2 /* MarkdownWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownWebView.swift; sourceTree = "<group>"; };
 		C34497C34B44F7C59245BB79 /* madmdHelper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = madmdHelper.entitlements; sourceTree = "<group>"; };
@@ -131,6 +136,7 @@
 			children = (
 				C59DE530C516EE95BCB33D47 /* AssetSchemeHandler.swift */,
 				6EDAE0D8EA006D1DAE07DF7A /* DocumentResourceReader.swift */,
+				A5751AA82E9B10016028E1C6 /* HelperChannel.swift */,
 				CF5A1CE4AB560A3A1AEB34A6 /* MarkdownFile.swift */,
 				B74EAB7AE78D92EDF0BAEDB2 /* MarkdownWebView.swift */,
 			);
@@ -338,6 +344,7 @@
 				6B7F0CF795D94C1FAF26A5E9 /* DocumentResourceReader.swift in Sources */,
 				DCA4972368B768EA05D09640 /* DocumentWindowController.swift in Sources */,
 				CB832E9088C5824DA9635AB4 /* FullPreviews.swift in Sources */,
+				F5D4AC08CBA6BA0DEF3F310D /* HelperChannel.swift in Sources */,
 				66E6CE88D737F6B06EDE32D4 /* MarkdownFile.swift in Sources */,
 				CB22E928FE7A73A3BCD9FA43 /* MarkdownWebView.swift in Sources */,
 				99FC24092E2C663FAC3A53C7 /* PreviewViewController.swift in Sources */,
@@ -351,6 +358,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3E1392C10D633F4F36C8F986 /* DocumentResourceReader.swift in Sources */,
+				00C6C4250C9E7F92DC11913B /* HelperChannel.swift in Sources */,
 				10DA270A13B9E380D7613EFC /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -361,6 +370,7 @@
 			files = (
 				FAB525566BA2A83335327336 /* AssetSchemeHandler.swift in Sources */,
 				74F6BD58610266A484FA538E /* DocumentResourceReader.swift in Sources */,
+				ACB8417AFE9C1EA3BB8B68D2 /* HelperChannel.swift in Sources */,
 				ADC55ABA94A52884EA763736 /* MarkdownFile.swift in Sources */,
 				FE6DDD2C1279D8A133BC4F48 /* MarkdownWebView.swift in Sources */,
 				EED56E42C4129A6476992283 /* PreviewViewController.swift in Sources */,

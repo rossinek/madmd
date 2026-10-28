@@ -19,6 +19,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     private let saveButton = NSButton(image: NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: "Save")!, target: nil, action: nil)
     private var watch: DispatchSourceFileSystemObject?
     private var reloadTask: Task<Void, Never>?
+    #if APP_STORE
+    var deniedFolders = Set<String>()
+    var accessBanner: NSTitlebarAccessoryViewController?
+    #endif
 
     init(file: MarkdownFile?) {
         self.file = file; text = file?.text ?? ""; savedText = text
@@ -41,6 +45,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         renderer.onSave = { [weak self] in self?.saveDocument(nil) }
         renderer.onLink = { [weak self] url in self?.openLink(url) }
         renderer.onError = { [weak self] error in guard let window = self?.window else { return }; NSAlert(error: error).beginSheetModal(for: window) }
+        #if APP_STORE
+        renderer.onMediaDenied = { [weak self] path in self?.mediaDenied(path) }
+        NotificationCenter.default.addObserver(self, selector: #selector(mediaAccessChanged), name: .madmdMediaAccessChanged, object: nil)
+        #endif
         applyTheme(); renderer.load(text: text, fileURL: file?.url, theme: dark ? "dark" : "light"); updateTitle(); watchFile()
         NotificationCenter.default.addObserver(self, selector: #selector(themeDidChange), name: .madmdThemeChanged, object: nil)
     }
@@ -48,6 +56,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     deinit { watch?.cancel(); reloadTask?.cancel(); NotificationCenter.default.removeObserver(self) }
 
     func install(_ file: MarkdownFile) {
+        #if APP_STORE
+        if file.url != self.file?.url { dismissAccessBanner() }
+        #endif
         self.file = file; text = file.text; savedText = text
         renderer.load(text: text, fileURL: file.url, theme: dark ? "dark" : "light"); updateTitle(); watchFile()
     }
@@ -133,7 +144,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         return false
     }
     func windowWillClose(_ notification: Notification) { watch?.cancel(); reloadTask?.cancel(); onClose?() }
-    func windowDidBecomeKey(_ notification: Notification) { if watch == nil { watchFile() }; refreshFromDisk() }
+    func windowDidBecomeKey(_ notification: Notification) {
+        if watch == nil { watchFile() }; refreshFromDisk()
+        #if APP_STORE
+        // Coming back from a permission prompt or Settings: media that was blocked may load now.
+        if accessBanner != nil, FullPreviews.shared.isEnabled { mediaAccessChanged() }
+        #endif
+    }
 
     // Watches the file itself: a sandboxed app may only have access to the file, not its folder.
     // Editors that save by replacing the file leave the old descriptor behind, so follow the path again.
@@ -185,4 +202,34 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         return item
     }
 }
+#if APP_STORE
+extension DocumentWindowController {
+    /// Offers access to the folders holding media the sandbox and the helper could not read.
+    func mediaDenied(_ path: String) {
+        deniedFolders.insert((path as NSString).deletingLastPathComponent)
+        guard accessBanner == nil, let window else { return }
+        let label = NSTextField(labelWithString: "Some media in this document is in a folder madmd can’t read.")
+        label.textColor = .secondaryLabelColor
+        let button = NSButton(title: "Allow Access…", target: self, action: #selector(allowMediaAccess)); button.controlSize = .small
+        let stack = NSStackView(views: [label, button]); stack.edgeInsets = NSEdgeInsets(top: 4, left: 14, bottom: 6, right: 14)
+        let banner = NSTitlebarAccessoryViewController(); banner.view = stack; banner.layoutAttribute = .bottom
+        window.addTitlebarAccessoryViewController(banner); accessBanner = banner
+    }
+    func dismissAccessBanner() {
+        deniedFolders = []
+        guard let banner = accessBanner, let index = window?.titlebarAccessoryViewControllers.firstIndex(of: banner) else { return }
+        window?.removeTitlebarAccessoryViewController(at: index); accessBanner = nil
+    }
+    @objc func mediaAccessChanged() { dismissAccessBanner(); renderer.refresh() }
+    @objc private func allowMediaAccess() {
+        // Start the panel at the deepest folder that contains every unreadable file.
+        let parts = deniedFolders.map { $0.split(separator: "/").map(String.init) }
+        var common = parts.first ?? []
+        for path in parts.dropFirst() { common = Array(zip(common, path).prefix { $0 == $1 }.map(\.0)) }
+        Task { @MainActor in
+            await FullPreviews.shared.allowFolder(startingAt: "/" + common.joined(separator: "/"))
+        }
+    }
+}
+#endif
 extension Notification.Name { static let madmdThemeChanged = Notification.Name("madmdThemeChanged") }

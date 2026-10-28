@@ -35,6 +35,35 @@ enum MediaPolicy {
         return (error as? CocoaError)?.code == .fileReadNoPermission
     }
 
+    /// HTTP-style status for a failed read, shared by the preview and the helper's replies.
+    static func status(for error: Error) -> Int {
+        if isAccessDenied(error) { return 403 }
+        switch (error as? CocoaError)?.code {
+        case blocked.code: return 415
+        case tooLarge.code: return 413
+        default: return [.ENOENT, .ENOTDIR].contains((error as? POSIXError)?.code) ? 404 : 500
+        }
+    }
+
+    static func error(for status: Int) -> Error {
+        switch status {
+        case 403: return POSIXError(.EPERM)
+        case 404: return POSIXError(.ENOENT)
+        case 413: return tooLarge
+        case 415: return blocked
+        default: return POSIXError(.EIO)
+        }
+    }
+
+    /// Opens a copy the helper already checked; it has no extension of its own.
+    static func open(cached path: String, mime: String) throws -> DocumentResource {
+        let fd = Darwin.open(path, O_RDONLY | O_CLOEXEC)
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        var info = stat()
+        guard fstat(fd, &info) == 0 else { Darwin.close(fd); throw POSIXError(.EIO) }
+        return DocumentResource(handle: FileHandle(fileDescriptor: fd, closeOnDealloc: true), length: Int(info.st_size), mime: mime)
+    }
+
     static func open(path: String) throws -> DocumentResource {
         guard path.hasPrefix("/"), mime(for: path) != nil else { throw blocked }
         let fd = Darwin.open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
