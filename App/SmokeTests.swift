@@ -94,7 +94,9 @@ enum SmokeTests {
             let unsatisfiable = await serve(subtitles.path, range: "bytes=99-")
             try check(unsatisfiable.response?.statusCode == 416, "Unsatisfiable ranges return 416")
             let refused = await serve(secret.path)
-            try check(refused.error != nil && refused.response == nil, "Preview cannot load non-media files")
+            try check(refused.response?.statusCode == 415 && refused.data.isEmpty, "Preview cannot load non-media files")
+            let gone = await serve(directory.appendingPathComponent("gone.png").path)
+            try check(gone.response?.statusCode == 404, "Missing media reports not found")
             let stopped = RecordingTask(request: URLRequest(url: URL(string: "madmd://document" + subtitles.path)!))
             renderer.scheme.webView(renderer.webView, start: stopped); renderer.scheme.webView(renderer.webView, stop: stopped)
             try await Task.sleep(for: .milliseconds(200))
@@ -178,6 +180,16 @@ enum SmokeTests {
                 if !parentLoaded { try await Task.sleep(for: .milliseconds(50)) }
             }
             try check(parentLoaded, "Images from parent folders load in the preview")
+            nestedRendered = false
+            nested.load(text: "![gone](missing.png) ![secret](../secret.txt)", fileURL: notes.appendingPathComponent("nested.md"), theme: "light")
+            for _ in 0..<200 where !nestedRendered { try await Task.sleep(for: .milliseconds(50)) }
+            var reasons: [String] = []
+            for _ in 0..<60 where reasons != ["Not found", "Not an image"] {
+                reasons = try await nested.webView.callAsyncJavaScript("return [...document.querySelectorAll('.media-placeholder')].map(e => e.dataset.reason)", arguments: [:], in: nil, contentWorld: .page) as? [String] ?? []
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            try check(reasons == ["Not found", "Not an image"], "Unavailable images show placeholders with the reason")
+            try check(try await nested.webView.callAsyncJavaScript("return [...document.querySelectorAll('#preview img')].every(img => img.hidden)", arguments: [:], in: nil, contentWorld: .page) as? Bool == true, "Broken images are hidden behind placeholders")
             nestedWindow.orderOut(nil)
             let quickLook = PreviewViewController(); quickLook.loadViewIfNeeded()
             let qlWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 720), styleMask: [.titled], backing: .buffered, defer: false)

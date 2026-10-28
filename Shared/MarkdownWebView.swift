@@ -148,6 +148,14 @@ final class MarkdownWebView: NSView, WKNavigationDelegate, NSSearchFieldDelegate
         case "editSource": if let offset = body["offset"] as? Int { onEditSource?(offset) }
         case "save": onSave?()
         case "link": if let href = body["href"] as? String, let url = URL(string: href) { onLink?(url) }
+        case "mediaError":
+            guard let id = body["id"] as? String, let src = body["src"] as? String, let url = URL(string: src), let path = scheme.documentURL(for: url)?.path else { return }
+            let reader = scheme.reader
+            Task { @MainActor [weak self] in
+                var status = 200
+                do { _ = try await reader.open(path: path) } catch { status = AssetSchemeHandler.status(for: error) }
+                _ = try? await self?.webView.callAsyncJavaScript("window.madmd.explainMedia(id, status)", arguments: ["id": id, "status": status], in: nil, contentWorld: .page)
+            }
         case "rendered": if hasContent && body["request"] as? String == requestID { onRender?(requestID); onRendered?() }
         case "error": onError?(NSError(domain: "madmd", code: 2, userInfo: [NSLocalizedDescriptionKey: body["message"] as? String ?? "Preview failed."]))
         case "warning": onWarning?(NSError(domain: "madmd", code: 4, userInfo: [NSLocalizedDescriptionKey: body["message"] as? String ?? "Optional preview content failed."]))

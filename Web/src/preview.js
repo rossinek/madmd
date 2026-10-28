@@ -17,13 +17,26 @@ const script = name => new Promise((resolve, reject) => {
 });
 
 const sanitize = createSanitizer(window);
+// Native code knows why local media is missing; it answers through window.madmd.explainMedia.
+const failures = { 403: 'No permission to read', 404: 'Not found', 413: 'Too large', 415: 'Not an image' };
+let placeholders = 0;
+function placeholder(img) {
+  const label = document.createElement('span'); label.className = 'media-placeholder'; label.dataset.id = String(++placeholders);
+  let name = img.getAttribute('src') ?? '';
+  try { name = decodeURIComponent(new URL(img.src).pathname.split('/').filter(Boolean).pop() ?? name); } catch {}
+  label.title = img.alt || name; label.dataset.name = name;
+  explain(label, 'Image unavailable');
+  img.hidden = true; img.after(label);
+  if (img.src.startsWith('madmd://document/')) post('mediaError', { id: label.dataset.id, src: img.src });
+}
+function explain(label, reason) { label.textContent = `${reason}: ${label.dataset.name}`; label.dataset.reason = reason; }
 function paint(force = false) {
   if (!force && paintedSource === source && paintedTheme === theme) return;
   paintedSource = source; paintedTheme = theme;
   const start = performance.now(), current = ++revision, request = requestID;
   window.madmdDisposeDiagrams?.();
   preview.innerHTML = sanitize(md.render(source));
-  preview.querySelectorAll('img').forEach(img => { img.loading = 'lazy'; img.decoding = 'async'; });
+  preview.querySelectorAll('img').forEach(img => { img.loading = 'lazy'; img.decoding = 'async'; img.addEventListener('error', () => placeholder(img), { once: true }); });
   preview.querySelectorAll('input').forEach(el => { el.disabled = true; if (el.type !== 'checkbox') el.remove(); });
   preview.querySelectorAll('a').forEach(a => a.rel = 'noopener noreferrer');
   const nodes = [...preview.querySelectorAll('.diagram')];
@@ -81,6 +94,7 @@ window.madmd = {
   action(id) { window.madmdEditor?.action(id); },
   markSaved() { window.madmdEditor?.markSaved(); },
   setBaseURL(url) { document.querySelector('base').href = url; paintedSource = undefined; },
+  explainMedia(id, status) { const label = preview.querySelector(`.media-placeholder[data-id="${id}"]`); if (label && failures[status]) explain(label, failures[status]); },
   // Used by the native integration checks against the real WebKit runtime.
   inspect() { return { mode, theme, text: this.getValue(), editorLoaded: !!window.madmdEditor,
     headings: preview.querySelectorAll('h1,h2,h3').length, tables: preview.querySelectorAll('table').length,

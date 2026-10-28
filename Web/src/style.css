@@ -7,6 +7,7 @@ html, body { margin: 0; min-height: 100%; background: var(--paper); color: var(-
 .markdown-body pre { tab-size: 4; }
 .markdown-body .footnotes-sep { display: none; }
 .markdown-body img { max-width: 100%; height: auto; }
+.media-placeholder { display: inline-block; padding: 2px 8px; border: 1px dashed var(--border); border-radius: 6px; font-size: 85%; opacity: .75; }
 .markdown-body .contains-task-list { list-style: none; padding-left: 1.5em; }
 .markdown-body .task-list-item-checkbox { margin-left: -1.4em; margin-right: .45em; }
 .markdown-body .markdown-alert { padding: 8px 16px; border-left: 4px solid #0969da; }

@@ -11,5 +11,7 @@ else
   mkdir -p build
 fi
 rm -f "$report"
-"build/Build/Products/$config/madmd.app/Contents/MacOS/madmd" --self-test "$report"
+status=0
+"build/Build/Products/$config/madmd.app/Contents/MacOS/madmd" --self-test "$report" || status=$?
 cat "$report"
+exit "$status"

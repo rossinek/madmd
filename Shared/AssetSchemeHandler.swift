@@ -86,6 +86,15 @@ final class AssetSchemeHandler: NSObject, WKURLSchemeHandler {
         return end >= start ? start..<(end + 1) : 0..<0
     }
 
+    static func status(for error: Error) -> Int {
+        if MediaPolicy.isAccessDenied(error) { return 403 }
+        switch (error as? CocoaError)?.code {
+        case MediaPolicy.blocked.code: return 415
+        case MediaPolicy.tooLarge.code: return 413
+        default: return [.ENOENT, .ENOTDIR].contains((error as? POSIXError)?.code) ? 404 : 500
+        }
+    }
+
     private func serveDocument(_ url: URL, _ task: WKURLSchemeTask) {
         let id = ObjectIdentifier(task); active.insert(id)
         let reader = reader, rangeHeader = task.request.value(forHTTPHeaderField: "Range")
@@ -117,7 +126,12 @@ final class AssetSchemeHandler: NSObject, WKURLSchemeHandler {
                     task.didReceive(chunk); offset += chunk.count
                 }
                 task.didFinish()
-            } catch { if live() { task.didFailWithError(error) } }
+            } catch {
+                // A status instead of a failed load lets the preview explain why media is missing.
+                guard live() else { return }
+                task.didReceive(HTTPURLResponse(url: url, statusCode: Self.status(for: error), httpVersion: "HTTP/1.1", headerFields: ["Content-Length": "0", "Access-Control-Allow-Origin": "*"])!)
+                task.didFinish()
+            }
         }
     }
 }
