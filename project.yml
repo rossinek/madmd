@@ -3,6 +3,10 @@ options:
   bundleIdPrefix: app.madmd
   deploymentTarget:
     macOS: '14.0'
+configs:
+  Debug: debug
+  Release: release
+  AppStore: release
 settings:
   base:
     SWIFT_VERSION: '5.0'
@@ -12,6 +16,11 @@ settings:
     ENABLE_HARDENED_RUNTIME: YES
     MARKETING_VERSION: '0.1.3'
     CURRENT_PROJECT_VERSION: '4'
+  configs:
+    AppStore:
+      CODE_SIGN_IDENTITY: Apple Development
+      DEVELOPMENT_TEAM: H7B584W2D6
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: APP_STORE
 targets:
   madmd:
     type: application
@@ -55,6 +64,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.madmd.mac
         CODE_SIGN_ENTITLEMENTS: App/madmd.entitlements
+      configs:
+        AppStore:
+          CODE_SIGN_ENTITLEMENTS: App/madmd-appstore.entitlements
     dependencies:
       - target: madmdQuickLook
         embed: true
@@ -63,6 +75,7 @@ targets:
     platform: macOS
     sources:
       - QuickLook/PreviewViewController.swift
+      - QuickLook/PrivacyInfo.xcprivacy
       - Shared
       - path: Web/quicklook/dist
         type: folder
@@ -85,8 +98,13 @@ targets:
         CODE_SIGN_ENTITLEMENTS: QuickLook/madmdQuickLook.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES
+      configs:
+        AppStore:
+          CODE_SIGN_ENTITLEMENTS: QuickLook/madmdQuickLook-appstore.entitlements
 schemes:
   madmd:
     build:
       targets:
         madmd: all
+    archive:
+      config: AppStore

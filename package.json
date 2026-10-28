@@ -7,7 +7,8 @@
   "scripts": {
     "build:web": "node Scripts/build-web.mjs",
     "test": "node --test Tests/*.test.mjs",
-    "build": "bash Scripts/build.sh"
+    "build": "bash Scripts/build.sh",
+    "build:appstore": "bash Scripts/build-appstore.sh"
   },
   "dependencies": {
     "dompurify": "^3.3.0",
