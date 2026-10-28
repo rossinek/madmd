@@ -45,6 +45,25 @@ Updates stage and verify the full bundle before replacing it, refresh the extens
 
 The source build is suitable for local use. Distribution to other Macs needs your Developer ID, hardened runtime signing of both targets, and notarization. No signing credentials or provisioning profiles are included.
 
+### Keep folder permissions across rebuilds
+
+macOS asks once per folder when a preview first reads files in **Documents**, **Desktop**, or **Downloads**. With the default ad hoc signing, macOS ties that approval to the exact build, so every rebuild and reinstall asks again.
+
+To keep approvals across rebuilds, sign with your own Apple Development certificate. It must be in your login keychain. If you have more than one, pass the full identity name instead of `"Apple Development"`.
+
+```sh
+npm run build -- CODE_SIGN_IDENTITY="Apple Development" DEVELOPMENT_TEAM=YOUR_TEAM_ID
+bash Scripts/install.sh
+```
+
+Your team ID is the `OU` value printed by:
+
+```sh
+security find-certificate -c "Apple Development" -p | openssl x509 -noout -subject
+```
+
+The first launch after switching from ad hoc signing shows “madmd differs from previously opened versions”. Choose **Open Anyway**, then approve the folder prompts once more. Later rebuilds signed with the same certificate keep them.
+
 ## Set madmd as the default Markdown app
 
 1. In Finder, select a Markdown file and press **⌘I** (**File → Get Info**).
