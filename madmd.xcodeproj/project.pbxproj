@@ -27,6 +27,7 @@
 		E9BC7E455A8A3A8B84985CC5 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398779BEAF70CB83EDA3A6B0 /* AppDelegate.swift */; };
 		EED56E42C4129A6476992283 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB29F41CFBE635A33D14EE0 /* PreviewViewController.swift */; };
 		FAB525566BA2A83335327336 /* AssetSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C59DE530C516EE95BCB33D47 /* AssetSchemeHandler.swift */; };
+		FD33EB879C347749F2429819 /* SandboxAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB91E669DC92177294D4DC7 /* SandboxAccess.swift */; };
 		FE6DDD2C1279D8A133BC4F48 /* MarkdownWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B74EAB7AE78D92EDF0BAEDB2 /* MarkdownWebView.swift */; };
 /* End PBXBuildFile section */
 
@@ -66,6 +67,7 @@
 		07B28F1627791496276B6D40 /* madmd.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = madmd.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		30FCD8443D24A459B10A94B6 /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
 		398779BEAF70CB83EDA3A6B0 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		3FB91E669DC92177294D4DC7 /* SandboxAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxAccess.swift; sourceTree = "<group>"; };
 		4EFBEDFF740056D268055E8A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		53CEB66C0305AD6132E2510E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		54E3D82163E51A4E33F47EA4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -152,6 +154,7 @@
 				9450D45131F9E08B2A42913B /* madmd.entitlements */,
 				B0BEAE5CCFEB7E3769CB4E85 /* main.swift */,
 				54E3D82163E51A4E33F47EA4 /* PrivacyInfo.xcprivacy */,
+				3FB91E669DC92177294D4DC7 /* SandboxAccess.swift */,
 				30FCD8443D24A459B10A94B6 /* SmokeTests.swift */,
 				02EDA8D84E6637AD368DBD35 /* Resources */,
 			);
@@ -333,6 +336,7 @@
 				66E6CE88D737F6B06EDE32D4 /* MarkdownFile.swift in Sources */,
 				CB22E928FE7A73A3BCD9FA43 /* MarkdownWebView.swift in Sources */,
 				99FC24092E2C663FAC3A53C7 /* PreviewViewController.swift in Sources */,
+				FD33EB879C347749F2429819 /* SandboxAccess.swift in Sources */,
 				799B753DD63B424664F40C81 /* SmokeTests.swift in Sources */,
 				BF5EA8BA613075EAE59C4B5F /* main.swift in Sources */,
 			);

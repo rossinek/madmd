@@ -92,6 +92,17 @@ enum SmokeTests {
             _ = try await js("window.madmdEditor.testEdit('# Unsaved'); window.madmd.action('undo'); return true")
             try await Task.sleep(for: .milliseconds(100))
             try check(try await renderer.value() == "# Changed", "Monaco undo restores saved contents")
+            func waitForText(_ expected: String) async throws { for _ in 0..<80 where controller.text != expected { try await Task.sleep(for: .milliseconds(50)) } }
+            for (replacement, message) in [("# Replaced once", "External atomic save reloads the document"), ("# Replaced twice", "Watching follows the replaced file")] {
+                try Data(replacement.utf8).write(to: url, options: .atomic)
+                try await waitForText(replacement)
+                try check(controller.text == replacement, message)
+            }
+            try FileManager.default.removeItem(at: url)
+            try await Task.sleep(for: .milliseconds(300))
+            try Data("# Changed".utf8).write(to: url)
+            try await waitForText("# Changed")
+            try check(controller.text == "# Changed", "Watching resumes after the file is deleted and recreated")
             _ = try await js("await window.madmd.setMode('preview'); await window.madmd.load('```mermaid\\ngraph TD; A-->B;\\n```', 'light', 'test'); return true")
             var diagram = false
             for _ in 0..<200 {

@@ -133,15 +133,25 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         return false
     }
     func windowWillClose(_ notification: Notification) { watch?.cancel(); reloadTask?.cancel(); onClose?() }
-    func windowDidBecomeKey(_ notification: Notification) { refreshFromDisk() }
+    func windowDidBecomeKey(_ notification: Notification) { if watch == nil { watchFile() }; refreshFromDisk() }
 
-    private func watchFile() {
+    // Watches the file itself: a sandboxed app may only have access to the file, not its folder.
+    // Editors that save by replacing the file leave the old descriptor behind, so follow the path again.
+    private func watchFile(attempt: Int = 0) {
         watch?.cancel(); watch = nil
         guard let url = file?.url else { return }
-        let fd = open(url.deletingLastPathComponent().path, O_EVTONLY)
-        guard fd >= 0 else { return }
-        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete], queue: .main)
-        source.setEventHandler { [weak self] in self?.refreshFromDisk() }; source.setCancelHandler { Darwin.close(fd) }; source.resume(); watch = source
+        let fd = open(url.path, O_EVTONLY)
+        guard fd >= 0 else {
+            if attempt < 20 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in if self?.watch == nil, self?.file?.url == url { self?.watchFile(attempt: attempt + 1) } } }
+            return
+        }
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .extend, .rename, .delete], queue: .main)
+        source.setEventHandler { [weak self, weak source] in
+            if let source, !source.data.isDisjoint(with: [.rename, .delete]) { self?.watchFile() }
+            self?.refreshFromDisk()
+        }
+        source.setCancelHandler { Darwin.close(fd) }; source.resume(); watch = source
+        if attempt > 0 { refreshFromDisk() }
     }
     private func refreshFromDisk() {
         reloadTask?.cancel()

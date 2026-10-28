@@ -36,7 +36,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     blank.install(file); blank.window?.makeKeyAndOrderFront(nil)
                 } else { add(DocumentWindowController(file: file)) }
                 NSDocumentController.shared.noteNewRecentDocumentURL(url)
-            } catch { NSApp.presentError(error) }
+            } catch {
+                #if APP_STORE
+                if (error as? CocoaError)?.code == .fileReadNoPermission { requestAccess(to: url); return }
+                #endif
+                NSApp.presentError(error)
+            }
         }
     }
     func add(_ controller: DocumentWindowController) {
