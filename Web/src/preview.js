@@ -18,25 +18,33 @@ const script = name => new Promise((resolve, reject) => {
 
 const sanitize = createSanitizer(window);
 // Native code knows why local media is missing; it answers through window.madmd.explainMedia.
-const failures = { 403: 'No permission to read', 404: 'Not found', 413: 'Too large', 415: 'Not an image' };
+const failures = { 403: 'No permission to read', 404: 'Not found', 413: 'Too large' };
 let placeholders = 0;
-function placeholder(img) {
+function placeholder(element, url) {
   const label = document.createElement('span'); label.className = 'media-placeholder'; label.dataset.id = String(++placeholders);
-  let name = img.getAttribute('src') ?? '';
-  try { name = decodeURIComponent(new URL(img.src).pathname.split('/').filter(Boolean).pop() ?? name); } catch {}
-  label.title = img.alt || name; label.dataset.name = name;
-  explain(label, 'Image unavailable');
-  img.hidden = true; img.after(label);
-  if (img.src.startsWith('madmd://document/')) post('mediaError', { id: label.dataset.id, src: img.src });
+  label.dataset.kind = { IMG: 'Image', VIDEO: 'Video', AUDIO: 'Audio' }[element.tagName];
+  let name = url ?? '';
+  try { name = decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() ?? name); } catch {}
+  label.title = element.getAttribute('alt') || name; label.dataset.name = name;
+  explain(label, `${label.dataset.kind} unavailable`);
+  element.hidden = true; element.after(label);
+  if (url?.startsWith('madmd://document/')) post('mediaError', { id: label.dataset.id, src: url });
 }
 function explain(label, reason) { label.textContent = `${reason}: ${label.dataset.name}`; label.dataset.reason = reason; }
+// A player with <source> children reports failure on the last source, after the earlier ones failed.
+function watchMedia(media) {
+  const last = [...media.querySelectorAll('source')].pop();
+  if (media.getAttribute('src') || !last) media.addEventListener('error', () => placeholder(media, media.currentSrc || media.src), { once: true });
+  else last.addEventListener('error', () => placeholder(media, last.src), { once: true });
+}
 function paint(force = false) {
   if (!force && paintedSource === source && paintedTheme === theme) return;
   paintedSource = source; paintedTheme = theme;
   const start = performance.now(), current = ++revision, request = requestID;
   window.madmdDisposeDiagrams?.();
   preview.innerHTML = sanitize(md.render(source));
-  preview.querySelectorAll('img').forEach(img => { img.loading = 'lazy'; img.decoding = 'async'; img.addEventListener('error', () => placeholder(img), { once: true }); });
+  preview.querySelectorAll('img').forEach(img => { img.loading = 'lazy'; img.decoding = 'async'; img.addEventListener('error', () => placeholder(img, img.src), { once: true }); });
+  preview.querySelectorAll('video, audio').forEach(watchMedia);
   preview.querySelectorAll('input').forEach(el => { el.disabled = true; if (el.type !== 'checkbox') el.remove(); });
   preview.querySelectorAll('a').forEach(a => a.rel = 'noopener noreferrer');
   const nodes = [...preview.querySelectorAll('.diagram')];
@@ -94,7 +102,11 @@ window.madmd = {
   action(id) { window.madmdEditor?.action(id); },
   markSaved() { window.madmdEditor?.markSaved(); },
   setBaseURL(url) { document.querySelector('base').href = url; paintedSource = undefined; },
-  explainMedia(id, status) { const label = preview.querySelector(`.media-placeholder[data-id="${id}"]`); if (label && failures[status]) explain(label, failures[status]); },
+  explainMedia(id, status) {
+    const label = preview.querySelector(`.media-placeholder[data-id="${id}"]`); if (!label) return;
+    if (failures[status]) explain(label, failures[status]);
+    else if (status === 415) explain(label, label.dataset.kind === 'Image' ? 'Not an image' : 'Not a media file');
+  },
   // Used by the native integration checks against the real WebKit runtime.
   inspect() { return { mode, theme, text: this.getValue(), editorLoaded: !!window.madmdEditor,
     headings: preview.querySelectorAll('h1,h2,h3').length, tables: preview.querySelectorAll('table').length,
