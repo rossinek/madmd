@@ -17,9 +17,10 @@ import ServiceManagement
         return false
     }
 
-    /// After an update the old helper process keeps running its old code, so replace it.
+    /// After an update the old helper process keeps running its old code, so replace it. Its replies may not
+    /// even arrive: once its bundle is replaced on disk, its signature no longer validates and XPC drops them.
     func refreshHelper() async {
-        guard isEnabled, let version = await ping(), version != Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String else { return }
+        guard isEnabled, await ping() != Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String else { return }
         await restartHelper()
     }
 
@@ -34,12 +35,15 @@ import ServiceManagement
     func enable() async -> Bool {
         do { try service.register() } catch { NSAlert(error: error).runModal(); return false }
         onChange?()
-        return await waitForHelper()
+        let running = await waitForHelper()
+        NotificationCenter.default.post(name: .madmdMediaAccessChanged, object: nil)
+        return running
     }
 
     func disable() {
         do { try service.unregister() } catch { NSAlert(error: error).runModal() }
         onChange?()
+        NotificationCenter.default.post(name: .madmdMediaAccessChanged, object: nil)
     }
 
     func folders() async -> [(path: String, available: Bool)] {
@@ -83,15 +87,17 @@ import ServiceManagement
         title.font = .boldSystemFont(ofSize: 15)
         let body = NSTextField(wrappingLabelWithString: "Markdown files often link to media in nearby folders. To show it in documents and in Quick Look, madmd needs a small helper that runs in the background and reads only images, audio, video, and subtitles from the folders you choose. You can change this later in Settings.")
         let enable = NSButton(title: "Choose Folders…", target: nil, action: nil); enable.keyEquivalent = "\r"
-        let later = NSButton(title: "Not Now", target: nil, action: nil)
+        let later = NSButton(title: "Not Now", target: nil, action: nil); later.keyEquivalent = "\u{1b}"
         let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let buttons = NSStackView(views: [spacer, later, enable])
         let stack = NSStackView(views: [title, body, buttons]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
         stack.edgeInsets = NSEdgeInsets(top: 22, left: 24, bottom: 20, right: 24)
         body.preferredMaxLayoutWidth = 420
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 470, height: 200), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Full Previews"; window.contentView = stack; window.isReleasedWhenClosed = false; window.center()
+        let window = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Full Previews"; window.contentView = stack; window.isReleasedWhenClosed = false
         buttons.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48).isActive = true
+        stack.widthAnchor.constraint(equalToConstant: 468).isActive = true
+        window.setContentSize(stack.fittingSize); window.center()
         enable.target = self; enable.action = #selector(onboardingEnable)
         later.target = self; later.action = #selector(onboardingLater)
         onboarding = window
@@ -131,7 +137,7 @@ extension Notification.Name { static let madmdMediaAccessChanged = Notification.
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 360), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Settings"; window.isReleasedWhenClosed = false
         super.init(window: window)
-        let note = NSTextField(wrappingLabelWithString: "A helper runs in the background and reads only images, audio, video, and subtitles from these folders, for documents and Quick Look.")
+        let note = NSTextField(wrappingLabelWithString: "Images, audio, video, and subtitles from these folders and their subfolders appear in documents and in Quick Look.")
         note.textColor = .secondaryLabelColor; note.preferredMaxLayoutWidth = 470
         let column = NSTableColumn(identifier: .init("path")); column.title = "Folders"; table.addTableColumn(column)
         table.headerView = nil; table.dataSource = self; table.delegate = self; table.usesAlternatingRowBackgroundColors = true
@@ -139,12 +145,14 @@ extension Notification.Name { static let madmdMediaAccessChanged = Notification.
         scroll.heightAnchor.constraint(equalToConstant: 150).isActive = true
         toggle.target = self; toggle.action = #selector(toggled)
         buttons.target = self; buttons.action = #selector(buttonPressed)
-        status.textColor = .secondaryLabelColor; status.lineBreakMode = .byWordWrapping; status.preferredMaxLayoutWidth = 470
-        let stack = NSStackView(views: [toggle, note, status, scroll, buttons]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
+        status.textColor = .systemOrange; status.font = .systemFont(ofSize: NSFont.smallSystemFontSize); status.lineBreakMode = .byWordWrapping; status.preferredMaxLayoutWidth = 470
+        let stack = NSStackView(views: [toggle, status, note, scroll, buttons]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
+        stack.setCustomSpacing(8, after: toggle)
         window.contentView = stack
         scroll.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48).isActive = true
-        window.center()
+        stack.widthAnchor.constraint(equalToConstant: 518).isActive = true
+        window.setContentSize(stack.fittingSize); window.center()
         previews.onChange = { [weak self] in self?.reload() }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
@@ -155,8 +163,14 @@ extension Notification.Name { static let madmdMediaAccessChanged = Notification.
         Task {
             folders = previews.isEnabled ? await previews.folders() : []
             let running = previews.isEnabled ? await previews.ping() != nil : false
-            status.stringValue = !previews.isEnabled ? "Off. Media madmd cannot read on its own shows placeholders." : running ? "On" : "On, but the helper is not responding."
+            status.stringValue = !previews.isEnabled ? "Turn on Full Previews to see images, audio, and video in documents and Quick Look." : "Full Previews is not responding. Turn it off and on again."
+            status.isHidden = previews.isEnabled && running
             table.reloadData()
+            // Fit the window to the status line, keeping its top edge in place.
+            if let window, let stack = window.contentView {
+                var frame = window.frame; let fitted = window.frameRect(forContentRect: NSRect(origin: .zero, size: stack.fittingSize))
+                frame.origin.y += frame.height - fitted.height; frame.size = fitted.size; window.setFrame(frame, display: true)
+            }
         }
     }
 

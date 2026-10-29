@@ -21,7 +21,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     private var reloadTask: Task<Void, Never>?
     #if APP_STORE
     var deniedFolders = Set<String>()
-    var accessBanner: NSTitlebarAccessoryViewController?
+    var accessBanner: NSView?
     #endif
 
     init(file: MarkdownFile?) {
@@ -204,32 +204,102 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 }
 #if APP_STORE
 extension DocumentWindowController {
+    private static var hiddenToasts = Set<String>()
+
     /// Offers access to the folders holding media the sandbox and the helper could not read.
     func mediaDenied(_ path: String) {
         deniedFolders.insert((path as NSString).deletingLastPathComponent)
-        guard accessBanner == nil, let window else { return }
-        let label = NSTextField(labelWithString: "Some media in this document is in a folder madmd can’t read.")
-        label.textColor = .secondaryLabelColor
-        let button = NSButton(title: "Allow Access…", target: self, action: #selector(allowMediaAccess)); button.controlSize = .small
-        let stack = NSStackView(views: [label, button]); stack.edgeInsets = NSEdgeInsets(top: 4, left: 14, bottom: 6, right: 14)
-        let banner = NSTitlebarAccessoryViewController(); banner.view = stack; banner.layoutAttribute = .bottom
-        window.addTitlebarAccessoryViewController(banner); accessBanner = banner
+        guard accessBanner == nil, !Self.hiddenToasts.contains(fileURL?.path ?? "") else { return }
+        let banner = AccessToast(message: "Some media in this document is in a folder madmd can’t read.", action: "Allow Access…", target: self, selector: #selector(allowMediaAccess))
+        banner.onHide = { [weak self] in
+            // Hidden until madmd quits; the placeholders still say what is missing.
+            Self.hiddenToasts.insert(self?.fileURL?.path ?? ""); self?.accessBanner?.removeFromSuperview(); self?.accessBanner = nil
+        }
+        renderer.addSubview(banner)
+        NSLayoutConstraint.activate([
+            banner.centerXAnchor.constraint(equalTo: renderer.centerXAnchor),
+            banner.topAnchor.constraint(equalTo: renderer.topAnchor, constant: 12),
+            banner.widthAnchor.constraint(lessThanOrEqualTo: renderer.widthAnchor, constant: -32)
+        ])
+        accessBanner = banner
     }
     func dismissAccessBanner() {
         deniedFolders = []
-        guard let banner = accessBanner, let index = window?.titlebarAccessoryViewControllers.firstIndex(of: banner) else { return }
-        window?.removeTitlebarAccessoryViewController(at: index); accessBanner = nil
+        accessBanner?.removeFromSuperview(); accessBanner = nil
     }
     @objc func mediaAccessChanged() { dismissAccessBanner(); renderer.refresh() }
     @objc private func allowMediaAccess() {
-        // Start the panel at the deepest folder that contains every unreadable file.
-        let parts = deniedFolders.map { $0.split(separator: "/").map(String.init) }
+        // Start the panel at the deepest folder that contains the document and every unreadable file.
+        let folders = deniedFolders.union([fileURL?.deletingLastPathComponent().path].compactMap { $0 })
+        let parts = folders.map { $0.split(separator: "/").map(String.init) }
         var common = parts.first ?? []
         for path in parts.dropFirst() { common = Array(zip(common, path).prefix { $0 == $1 }.map(\.0)) }
         Task { @MainActor in
             await FullPreviews.shared.allowFolder(startingAt: "/" + common.joined(separator: "/"))
         }
     }
+}
+
+/// A pill over the top of the document that warns about something the user can fix.
+final class AccessToast: NSView {
+    var onHide: (() -> Void)?
+
+    init(message: String, action: String, target: AnyObject, selector: Selector) {
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false; wantsLayer = true
+        let icon = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "Warning")!)
+        icon.contentTintColor = Self.foreground
+        let label = NSTextField(labelWithString: message); label.textColor = Self.foreground; label.lineBreakMode = .byTruncatingTail
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let button = PillButton(title: action, target: target, action: selector)
+        let close = NSButton(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: "Hide")!, target: nil, action: #selector(hide))
+        close.target = self; close.isBordered = false; close.contentTintColor = Self.foreground; close.toolTip = "Hide"
+        close.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 10, weight: .semibold)
+        let stack = NSStackView(views: [icon, label, button, close]); stack.spacing = 8; stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14), stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 6), stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6)
+        ])
+        layer?.shadowOpacity = 0.18; layer?.shadowRadius = 8; layer?.shadowOffset = CGSize(width: 0, height: -2)
+        setAccessibilityRole(.group); setAccessibilityLabel(message)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+    @objc private func hide() { onHide?() }
+
+    // Primer's attention colors, solid so the document does not show through.
+    static let foreground = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(srgbRed: 0.82, green: 0.6, blue: 0.13, alpha: 1) : NSColor(srgbRed: 0.6, green: 0.4, blue: 0, alpha: 1) }
+    private static let fill = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(srgbRed: 0.15, green: 0.13, blue: 0.08, alpha: 1) : NSColor(srgbRed: 1, green: 0.97, blue: 0.77, alpha: 1) }
+    private static let border = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(srgbRed: 0.42, green: 0.31, blue: 0.07, alpha: 1) : NSColor(srgbRed: 0.83, green: 0.65, blue: 0.17, alpha: 1) }
+
+    override var wantsUpdateLayer: Bool { true }
+    override func updateLayer() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = Self.fill.cgColor; layer?.borderColor = Self.border.cgColor; layer?.shadowColor = NSColor.black.cgColor
+        }
+        layer?.borderWidth = 1; layer?.cornerRadius = bounds.height / 2
+    }
+    override func layout() { super.layout(); needsDisplay = true }
+}
+
+/// A fully rounded button in the toast's colors.
+final class PillButton: NSButton {
+    init(title: String, target: AnyObject, action: Selector) {
+        super.init(frame: .zero)
+        self.target = target; self.action = action; isBordered = false; wantsLayer = true
+        attributedTitle = NSAttributedString(string: title, attributes: [.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium), .foregroundColor: AccessToast.foreground])
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+    override var intrinsicContentSize: NSSize { let size = super.intrinsicContentSize; return NSSize(width: size.width + 20, height: size.height + 6) }
+    override var isHighlighted: Bool { didSet { needsDisplay = true } }
+    override var wantsUpdateLayer: Bool { true }
+    override func updateLayer() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = AccessToast.foreground.withAlphaComponent(isHighlighted ? 0.35 : 0.2).cgColor
+        }
+        layer?.cornerRadius = bounds.height / 2
+    }
+    override func layout() { super.layout(); needsDisplay = true }
 }
 #endif
 extension Notification.Name { static let madmdThemeChanged = Notification.Name("madmdThemeChanged") }

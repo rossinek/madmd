@@ -25,12 +25,15 @@ function placeholder(element, url) {
   label.dataset.kind = { IMG: 'Image', VIDEO: 'Video', AUDIO: 'Audio' }[element.tagName];
   let name = url ?? '';
   try { name = decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() ?? name); } catch {}
-  label.title = element.getAttribute('alt') || name; label.dataset.name = name;
+  label.title = name; label.dataset.name = name;
+  const alt = element.getAttribute('alt')?.trim();
+  if (alt) { const caption = document.createElement('span'); caption.className = 'media-placeholder-alt'; caption.textContent = alt; label.append(caption); }
+  label.append(Object.assign(document.createElement('span'), { className: 'media-placeholder-reason' }));
   explain(label, `${label.dataset.kind} unavailable`);
   element.hidden = true; element.after(label);
   if (url?.startsWith('madmd://document/')) post('mediaError', { id: label.dataset.id, src: url });
 }
-function explain(label, reason) { label.textContent = `${reason}: ${label.dataset.name}`; label.dataset.reason = reason; }
+function explain(label, reason) { label.lastChild.textContent = `${reason}: ${label.dataset.name}`; label.dataset.reason = reason; }
 // A player with <source> children reports failure on the last source, after the earlier ones failed.
 function watchMedia(media) {
   const last = [...media.querySelectorAll('source')].pop();
