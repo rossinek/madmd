@@ -43,7 +43,7 @@ targets:
         NSHighResolutionCapable: true
         CFBundleIconFile: madmd.icns
         ITSAppUsesNonExemptEncryption: false
-        LSApplicationCategoryType: public.app-category.productivity
+        LSApplicationCategoryType: public.app-category.developer-tools
         LSMinimumSystemVersion: '14.0'
         CFBundleDocumentTypes:
           - CFBundleTypeName: Markdown
