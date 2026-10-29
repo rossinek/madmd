@@ -66,6 +66,8 @@ The first launch after switching from ad hoc signing shows “madmd differs from
 
 ## Set madmd as the default Markdown app
 
+Choose **madmd → Make madmd the Default for Markdown** and confirm in the dialog macOS shows. App Store builds also offer this in **Settings**. To change it in Finder instead:
+
 1. In Finder, select a Markdown file and press **⌘I** (**File → Get Info**).
 2. Expand **Open with** and choose **madmd**. If it is missing, choose **Other…** and select `~/Applications/madmd.app` (or your custom installation destination).
 3. Click **Change All…**, then confirm with **Continue**.

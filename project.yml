@@ -48,7 +48,7 @@ targets:
         CFBundleDocumentTypes:
           - CFBundleTypeName: Markdown
             CFBundleTypeRole: Editor
-            LSHandlerRank: Alternate
+            LSHandlerRank: Default
             LSItemContentTypes: [net.daringfireball.markdown, public.markdown]
         UTImportedTypeDeclarations:
           - UTTypeIdentifier: net.daringfireball.markdown

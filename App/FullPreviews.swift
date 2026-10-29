@@ -131,6 +131,8 @@ extension Notification.Name { static let madmdMediaAccessChanged = Notification.
     private let table = NSTableView()
     private let buttons = NSSegmentedControl(images: [NSImage(systemSymbolName: "plus", accessibilityDescription: "Add Folder")!, NSImage(systemSymbolName: "minus", accessibilityDescription: "Remove Folder")!], trackingMode: .momentary, target: nil, action: nil)
     private var folders: [(path: String, available: Bool)] = []
+    private let defaultStatus = NSTextField(labelWithString: "")
+    private let makeDefault = NSButton(title: "Make Default", target: nil, action: nil)
 
     init(previews: FullPreviews) {
         self.previews = previews
@@ -138,7 +140,7 @@ extension Notification.Name { static let madmdMediaAccessChanged = Notification.
         window.title = "Settings"; window.isReleasedWhenClosed = false
         super.init(window: window)
         let note = NSTextField(wrappingLabelWithString: "Images, audio, video, and subtitles from these folders and their subfolders appear in documents and in Quick Look.")
-        note.textColor = .secondaryLabelColor; note.preferredMaxLayoutWidth = 470
+        note.textColor = .secondaryLabelColor; note.font = .systemFont(ofSize: NSFont.smallSystemFontSize); note.preferredMaxLayoutWidth = 470
         let column = NSTableColumn(identifier: .init("path")); column.title = "Folders"; table.addTableColumn(column)
         table.headerView = nil; table.dataSource = self; table.delegate = self; table.usesAlternatingRowBackgroundColors = true
         let scroll = NSScrollView(); scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.borderType = .bezelBorder
@@ -146,18 +148,57 @@ extension Notification.Name { static let madmdMediaAccessChanged = Notification.
         toggle.target = self; toggle.action = #selector(toggled)
         buttons.target = self; buttons.action = #selector(buttonPressed)
         status.textColor = .systemOrange; status.font = .systemFont(ofSize: NSFont.smallSystemFontSize); status.lineBreakMode = .byWordWrapping; status.preferredMaxLayoutWidth = 470
-        let stack = NSStackView(views: [toggle, status, note, scroll, buttons]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
+        // Markdown files: the Finder default can be read and changed; Quick Look's choice cannot.
+        let separator = NSBox(); separator.boxType = .separator
+        makeDefault.target = self; makeDefault.action = #selector(makeDefaultPressed)
+        defaultStatus.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        let opening = NSStackView(views: [Self.heading("Open all Markdown files in madmd"), defaultStatus]); opening.orientation = .vertical; opening.alignment = .leading; opening.spacing = 4
+        let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let openRow = NSStackView(views: [opening, spacer, makeDefault])
+        let quickLook = NSTextField(wrappingLabelWithString: ""); quickLook.preferredMaxLayoutWidth = 470
+        quickLook.attributedStringValue = Self.text([("When you select a file in Finder and ", false), ("press the Space bar", true), (", madmd shows a preview of it. ", false),
+                                                     ("If another app’s preview appears instead", true), (", turn off that app in the Quick Look section of Extensions.", false)])
+        let quickLookHeading = Self.heading("Quick Look in Finder")
+        let extensions = NSButton(title: "Quick Look Extensions…", target: self, action: #selector(showExtensions))
+        let stack = NSStackView(views: [toggle, status, note, scroll, buttons, separator, openRow, quickLookHeading, quickLook, extensions]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
-        stack.setCustomSpacing(8, after: toggle)
+        stack.setCustomSpacing(8, after: toggle); stack.setCustomSpacing(16, after: buttons); stack.setCustomSpacing(16, after: separator)
+        stack.setCustomSpacing(20, after: openRow); stack.setCustomSpacing(4, after: quickLookHeading)
         window.contentView = stack
-        scroll.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48).isActive = true
+        for view in [scroll, separator, openRow] { view.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48).isActive = true }
         stack.widthAnchor.constraint(equalToConstant: 518).isActive = true
         window.setContentSize(stack.fittingSize); window.center()
         previews.onChange = { [weak self] in self?.reload() }
+        // Another app or Finder's Get Info can change the default while Settings is open.
+        for name in [NSWindow.didBecomeKeyNotification, .madmdDefaultsChanged] {
+            NotificationCenter.default.addObserver(self, selector: #selector(reloadDefaults), name: name, object: name == .madmdDefaultsChanged ? nil : window)
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
 
+    @objc private func reloadDefaults() {
+        let isDefault = MarkdownDefaults.isDefault
+        defaultStatus.stringValue = isDefault ? "madmd is the default app for Markdown files." : "madmd is not the default app for Markdown files."
+        defaultStatus.textColor = isDefault ? .systemGreen : .secondaryLabelColor
+        makeDefault.isHidden = isDefault
+    }
+    private static func heading(_ title: String) -> NSTextField {
+        let label = NSTextField(labelWithString: title); label.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .semibold); return label
+    }
+    /// Secondary text with some parts in bold.
+    private static func text(_ parts: [(String, bold: Bool)]) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        for (string, bold) in parts {
+            result.append(NSAttributedString(string: string, attributes: [.foregroundColor: NSColor.secondaryLabelColor,
+                                                                          .font: bold ? NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold) : NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)]))
+        }
+        return result
+    }
+    @objc private func makeDefaultPressed() { Task { await MarkdownDefaults.makeDefault() } }
+    @objc private func showExtensions() { MarkdownDefaults.showQuickLookExtensions() }
+
     func reload() {
+        reloadDefaults()
         toggle.state = previews.isEnabled ? .on : .off
         buttons.isEnabled = previews.isEnabled
         Task {

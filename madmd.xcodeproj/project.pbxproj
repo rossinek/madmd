@@ -16,6 +16,7 @@
 		6B7F0CF795D94C1FAF26A5E9 /* DocumentResourceReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EDAE0D8EA006D1DAE07DF7A /* DocumentResourceReader.swift */; };
 		701BB65ADA0C72FBB9EDB9E2 /* dist in Resources */ = {isa = PBXBuildFile; fileRef = 930CC958F86FB3B552E868A8 /* dist */; };
 		7025E5B2A5A352931E1C3EDA /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = CBCCF7C0DEFE68245AF12CF0 /* PrivacyInfo.xcprivacy */; };
+		7273700C5015DAC92BD61184 /* MarkdownDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D7BB2E4EAF614633E58DED /* MarkdownDefaults.swift */; };
 		74F6BD58610266A484FA538E /* DocumentResourceReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EDAE0D8EA006D1DAE07DF7A /* DocumentResourceReader.swift */; };
 		799B753DD63B424664F40C81 /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30FCD8443D24A459B10A94B6 /* SmokeTests.swift */; };
 		8650FF4E6C6453378B01C331 /* madmd.icns in Resources */ = {isa = PBXBuildFile; fileRef = FBA71EB18D8F6C96053044B0 /* madmd.icns */; };
@@ -76,6 +77,7 @@
 		3FB91E669DC92177294D4DC7 /* SandboxAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxAccess.swift; sourceTree = "<group>"; };
 		4EFBEDFF740056D268055E8A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		53CEB66C0305AD6132E2510E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		53D7BB2E4EAF614633E58DED /* MarkdownDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDefaults.swift; sourceTree = "<group>"; };
 		54E3D82163E51A4E33F47EA4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		572ECD9A3BEDBCD5C1FFC24B /* madmd-appstore.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "madmd-appstore.entitlements"; sourceTree = "<group>"; };
 		6B6E5196B713F152FEF3D7BE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -163,6 +165,7 @@
 				572ECD9A3BEDBCD5C1FFC24B /* madmd-appstore.entitlements */,
 				9450D45131F9E08B2A42913B /* madmd.entitlements */,
 				B0BEAE5CCFEB7E3769CB4E85 /* main.swift */,
+				53D7BB2E4EAF614633E58DED /* MarkdownDefaults.swift */,
 				54E3D82163E51A4E33F47EA4 /* PrivacyInfo.xcprivacy */,
 				3FB91E669DC92177294D4DC7 /* SandboxAccess.swift */,
 				30FCD8443D24A459B10A94B6 /* SmokeTests.swift */,
@@ -345,6 +348,7 @@
 				DCA4972368B768EA05D09640 /* DocumentWindowController.swift in Sources */,
 				CB832E9088C5824DA9635AB4 /* FullPreviews.swift in Sources */,
 				F5D4AC08CBA6BA0DEF3F310D /* HelperChannel.swift in Sources */,
+				7273700C5015DAC92BD61184 /* MarkdownDefaults.swift in Sources */,
 				66E6CE88D737F6B06EDE32D4 /* MarkdownFile.swift in Sources */,
 				CB22E928FE7A73A3BCD9FA43 /* MarkdownWebView.swift in Sources */,
 				99FC24092E2C663FAC3A53C7 /* PreviewViewController.swift in Sources */,

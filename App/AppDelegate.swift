@@ -1,6 +1,6 @@
 import AppKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemValidation {
     var documents: [DocumentWindowController] = []
     private var terminating = false
     var active: DocumentWindowController? { documents.first { $0.window?.isKeyWindow == true } ?? documents.last }
@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     #if APP_STORE
     @MainActor @objc func showSettings(_ sender: Any?) { FullPreviews.shared.showSettings() }
     #endif
+    @MainActor @objc func makeDefault(_ sender: Any?) { Task { await MarkdownDefaults.makeDefault() } }
+    @MainActor func validateMenuItem(_ item: NSMenuItem) -> Bool { item.action != #selector(makeDefault(_:)) || !MarkdownDefaults.isDefault }
     func application(_ application: NSApplication, open urls: [URL]) { for url in urls { openFile(url) } }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { if !flag { newDocument(nil) }; return true }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -97,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #if APP_STORE
         app.addItem(.separator()); item(app, "Settings…", #selector(showSettings(_:)), ",", target: self)
         #endif
+        app.addItem(.separator()); item(app, "Make madmd the Default for Markdown", #selector(makeDefault(_:)), target: self)
         app.addItem(.separator()); item(app, "Hide madmd", #selector(NSApplication.hide(_:)), "h")
         item(app, "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", modifiers: [.command, .option])
         item(app, "Show All", #selector(NSApplication.unhideAllApplications(_:)))
