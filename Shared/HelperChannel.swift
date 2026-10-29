@@ -76,8 +76,14 @@ struct XPCResourceReader: DocumentResourceReader {
 }
 
 /// Quick Look's channel: a sealed request by notification, answered in `cache/<id>.meta` and `cache/<id>.bin`.
+/// One copy per file serves every range request for it; the helper removes copies after 30 seconds.
 struct NotificationResourceReader: DocumentResourceReader {
+    private static var copies: [String: (path: String, mime: String, date: Date)] = [:]
+    private static let lock = NSLock()
+
     func open(path: String) async throws -> DocumentResource {
+        let recent = Self.lock.withLock { Self.copies[path].flatMap { Date().timeIntervalSince($0.date) < 20 ? $0 : nil } }
+        if let recent, let resource = try? MediaPolicy.open(cached: recent.path, mime: recent.mime) { return resource }
         guard let cache = HelperChannel.cache, let key = HelperChannel.key(), let heartbeat = HelperChannel.heartbeat,
               let beat = try? FileManager.default.attributesOfItem(atPath: heartbeat.path)[.modificationDate] as? Date,
               Date().timeIntervalSince(beat) < 30, let sealed = HelperChannel.seal(path, with: key) else { throw POSIXError(.EPERM) }
@@ -88,7 +94,9 @@ struct NotificationResourceReader: DocumentResourceReader {
         for _ in 0..<500 {
             if let data = try? Data(contentsOf: meta), let info = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let status = info["status"] as? Int {
                 guard status == 200, let mime = info["mime"] as? String else { throw MediaPolicy.error(for: status) }
-                return try MediaPolicy.open(cached: cache.appendingPathComponent(id + ".bin").path, mime: mime)
+                let copy = cache.appendingPathComponent(id + ".bin").path
+                Self.lock.withLock { Self.copies[path] = (copy, mime, Date()) }
+                return try MediaPolicy.open(cached: copy, mime: mime)
             }
             try await Task.sleep(for: .milliseconds(10))
         }

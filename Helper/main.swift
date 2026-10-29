@@ -96,6 +96,8 @@ final class Helper: NSObject, HelperService, NSXPCListenerDelegate {
                 defer { Darwin.close(out) }
                 guard fcopyfile(resource.handle.fileDescriptor, out, nil, copyfile_flags_t(COPYFILE_DATA)) == 0 else { throw POSIXError(.EIO) }
             }
+            // A clone keeps the original's dates; date it now so cleanup does not remove it while Quick Look reads it.
+            try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: copy)
             info["mime"] = resource.mime
         } catch { info["status"] = MediaPolicy.status(for: error) }
         if let data = try? JSONSerialization.data(withJSONObject: info) { try? data.write(to: cache.appendingPathComponent(id + ".meta"), options: .atomic) }
