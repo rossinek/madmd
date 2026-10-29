@@ -73,6 +73,7 @@ final class MarkdownWebView: NSView, WKNavigationDelegate, NSSearchFieldDelegate
     var onError: ((Error) -> Void)?
     var onWarning: ((Error) -> Void)?
     var onMediaDenied: ((String) -> Void)?
+    var onAllowMedia: (() -> Void)?
 
     init(bundle: Bundle = .main) {
         scheme = AssetSchemeHandler(bundle: bundle)
@@ -157,9 +158,10 @@ final class MarkdownWebView: NSView, WKNavigationDelegate, NSSearchFieldDelegate
             Task { @MainActor [weak self] in
                 var status = 200
                 do { _ = try await reader.open(path: path) } catch { status = MediaPolicy.status(for: error) }
-                _ = try? await self?.webView.callAsyncJavaScript("window.madmd.explainMedia(id, status)", arguments: ["id": id, "status": status], in: nil, contentWorld: .page)
+                _ = try? await self?.webView.callAsyncJavaScript("window.madmd.explainMedia(id, status, allow)", arguments: ["id": id, "status": status, "allow": self?.onAllowMedia != nil], in: nil, contentWorld: .page)
                 if status == 403 { self?.onMediaDenied?(path) }
             }
+        case "allowMedia": onAllowMedia?()
         case "rendered": if hasContent && body["request"] as? String == requestID { onRender?(requestID); onRendered?() }
         case "error": onError?(NSError(domain: "madmd", code: 2, userInfo: [NSLocalizedDescriptionKey: body["message"] as? String ?? "Preview failed."]))
         case "warning": onWarning?(NSError(domain: "madmd", code: 4, userInfo: [NSLocalizedDescriptionKey: body["message"] as? String ?? "Optional preview content failed."]))

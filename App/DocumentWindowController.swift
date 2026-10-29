@@ -47,6 +47,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         renderer.onError = { [weak self] error in guard let window = self?.window else { return }; NSAlert(error: error).beginSheetModal(for: window) }
         #if APP_STORE
         renderer.onMediaDenied = { [weak self] path in self?.mediaDenied(path) }
+        renderer.onAllowMedia = { [weak self] in self?.allowMediaAccess() }
         NotificationCenter.default.addObserver(self, selector: #selector(mediaAccessChanged), name: .madmdMediaAccessChanged, object: nil)
         #endif
         applyTheme(); renderer.load(text: text, fileURL: file?.url, theme: dark ? "dark" : "light"); updateTitle(); watchFile()

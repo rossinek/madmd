@@ -33,7 +33,15 @@ function placeholder(element, url) {
   element.hidden = true; element.after(label);
   if (url?.startsWith('madmd://document/')) post('mediaError', { id: label.dataset.id, src: url });
 }
-function explain(label, reason) { label.lastChild.textContent = `${reason}: ${label.dataset.name}`; label.dataset.reason = reason; }
+function explain(label, reason, allow = false) {
+  const line = label.querySelector('.media-placeholder-reason');
+  line.textContent = `${reason}: ${label.dataset.name}`; label.dataset.reason = reason;
+  if (!allow) return;
+  // A placeholder can sit inside a link, so the button keeps its click to itself.
+  const button = Object.assign(document.createElement('button'), { type: 'button', className: 'media-placeholder-allow', textContent: 'Allow Access…' });
+  button.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); post('allowMedia'); });
+  line.append(' · ', button);
+}
 // A player with <source> children reports failure on the last source, after the earlier ones failed.
 function watchMedia(media) {
   const last = [...media.querySelectorAll('source')].pop();
@@ -105,9 +113,9 @@ window.madmd = {
   action(id) { window.madmdEditor?.action(id); },
   markSaved() { window.madmdEditor?.markSaved(); },
   setBaseURL(url) { document.querySelector('base').href = url; paintedSource = undefined; },
-  explainMedia(id, status) {
+  explainMedia(id, status, allow = false) {
     const label = preview.querySelector(`.media-placeholder[data-id="${id}"]`); if (!label) return;
-    if (failures[status]) explain(label, failures[status]);
+    if (failures[status]) explain(label, failures[status], allow && status === 403);
     else if (status === 415) explain(label, label.dataset.kind === 'Image' ? 'Not an image' : 'Not a media file');
   },
   // Used by the native integration checks against the real WebKit runtime.
