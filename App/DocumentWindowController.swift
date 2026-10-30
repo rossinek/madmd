@@ -22,6 +22,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     #if APP_STORE
     var deniedFolders = Set<String>()
     var accessBanner: NSView?
+    var checkingHelper = false
     #endif
 
     init(file: MarkdownFile?) {
@@ -210,8 +211,20 @@ extension DocumentWindowController {
     /// Offers access to the folders holding media the sandbox and the helper could not read.
     func mediaDenied(_ path: String) {
         deniedFolders.insert((path as NSString).deletingLastPathComponent)
-        guard accessBanner == nil, !Self.hiddenToasts.contains(fileURL?.path ?? "") else { return }
-        let banner = AccessToast(message: "Some media in this document is in a folder madmd can’t read.", action: "Allow Access…", target: self, selector: #selector(allowMediaAccess))
+        guard accessBanner == nil, !checkingHelper, !Self.hiddenToasts.contains(fileURL?.path ?? "") else { return }
+        guard FullPreviews.shared.isEnabled else { showAccessBanner(responding: true); return }
+        // Every blocked file lands here, so the helper is asked once per document and the banner explains a silent helper.
+        checkingHelper = true
+        Task { @MainActor in
+            let responding = await FullPreviews.shared.ping() != nil
+            checkingHelper = false
+            if accessBanner == nil { showAccessBanner(responding: responding) }
+        }
+    }
+    private func showAccessBanner(responding: Bool) {
+        let banner = responding
+            ? AccessToast(message: "Some media in this document is in a folder madmd can’t read.", action: "Allow Access…", target: self, selector: #selector(allowMediaAccess))
+            : AccessToast(message: "Full Previews isn’t responding, so some media can’t be shown.", action: "Restart", target: self, selector: #selector(restartFullPreviews))
         banner.onHide = { [weak self] in
             // Hidden until madmd quits; the placeholders still say what is missing.
             Self.hiddenToasts.insert(self?.fileURL?.path ?? ""); self?.accessBanner?.removeFromSuperview(); self?.accessBanner = nil
@@ -229,6 +242,11 @@ extension DocumentWindowController {
         accessBanner?.removeFromSuperview(); accessBanner = nil
     }
     @objc func mediaAccessChanged() { dismissAccessBanner(); renderer.refresh() }
+    @objc private func restartFullPreviews() {
+        Task { @MainActor in
+            if await FullPreviews.shared.restart() { NotificationCenter.default.post(name: .madmdMediaAccessChanged, object: nil) }
+        }
+    }
     @objc private func allowMediaAccess() {
         // Start the panel at the deepest folder that contains the document and every unreadable file.
         let folders = deniedFolders.union([fileURL?.deletingLastPathComponent().path].compactMap { $0 })

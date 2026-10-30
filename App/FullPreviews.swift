@@ -19,25 +19,64 @@ import ServiceManagement
 
     /// After an update the old helper process keeps running its old code, so replace it. Its replies may not
     /// even arrive: once its bundle is replaced on disk, its signature no longer validates and XPC drops them.
+    /// A helper that rejects the new app's connection cannot be asked to quit, so it is registered again instead.
     func refreshHelper() async {
         guard isEnabled, await ping() != Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String else { return }
-        await restartHelper()
+        if await !restartHelper() { _ = await reregister(alerting: false) }
     }
 
     /// A fresh process asks macOS for the protected folders inside the granted ones.
-    func restartHelper() async {
+    @discardableResult func restartHelper() async -> Bool {
         let connection = HelperChannel.connection(); connection.resume()
         (connection.remoteObjectProxy as? HelperService)?.restart()
         try? await Task.sleep(for: .milliseconds(600)); connection.invalidate()
-        _ = await waitForHelper()
+        return await waitForHelper()
     }
 
-    func enable() async -> Bool {
-        do { try service.register() } catch { NSAlert(error: error).runModal(); return false }
+    /// Unregistering stops the helper's process, so registering again starts a new one.
+    private func reregister(alerting: Bool = true) async -> Bool {
+        try? await service.unregister()
+        return await enable(alerting: alerting)
+    }
+
+    /// Alerts are for actions the user started; a check at launch stays quiet.
+    func enable(alerting: Bool = true) async -> Bool {
+        do { try service.register() } catch { if alerting { NSAlert(error: error).runModal() }; return false }
         onChange?()
+        if service.status == .requiresApproval { if alerting { showApprovalNeeded() }; return false }
         let running = await waitForHelper()
         NotificationCenter.default.post(name: .madmdMediaAccessChanged, object: nil)
         return running
+    }
+
+    /// Offers to restart a helper that does not answer an action the user started. After a restart that did not help,
+    /// it only says so, so the user never sees the same question twice in a row.
+    func restartAfterNoResponse(offer: Bool = true) async -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "Full Previews isn’t responding"
+        guard offer else {
+            alert.informativeText = "Restarting Full Previews didn’t help. Restart your Mac and try again."
+            alert.runModal(); return false
+        }
+        alert.informativeText = "madmd can’t reach the helper that reads media for documents and Quick Look."
+        alert.addButton(withTitle: "Restart Full Previews"); alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        return await restart()
+    }
+
+    /// Restarts the helper on the user's request and says so when that does not help.
+    func restart() async -> Bool {
+        if await reregister() { return true }
+        if service.status != .requiresApproval { _ = await restartAfterNoResponse(offer: false) }
+        return false
+    }
+
+    private func showApprovalNeeded() {
+        let alert = NSAlert()
+        alert.messageText = "Allow madmd in Login Items"
+        alert.informativeText = "Full Previews needs madmd’s helper to run in the background. Turn on madmd in System Settings, then try again."
+        alert.addButton(withTitle: "Open System Settings"); alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn { SMAppService.openSystemSettingsLoginItems() }
     }
 
     func disable() {
@@ -53,10 +92,21 @@ import ServiceManagement
     }
 
     /// Enables the helper if needed, lets the user pick a folder in the helper's panel, and returns the chosen path.
-    @discardableResult func allowFolder(startingAt path: String) async -> String? {
-        if !isEnabled { guard await enable() else { return nil } }
-        let chosen: String?? = await HelperChannel.call(timeout: 3600) { helper, done in helper.addFolder(path) { done($0) } }
-        guard let chosen = chosen ?? nil else { return nil }
+    @discardableResult func allowFolder(startingAt path: String, retry: Bool = true) async -> String? {
+        if !isEnabled {
+            guard await enable() else {
+                // A failed registration has already shown its own alert.
+                if isEnabled, await restartAfterNoResponse(offer: retry) { return await allowFolder(startingAt: path, retry: false) }
+                return nil
+            }
+        }
+        // The panel may stay open for long, so a helper that hangs is caught by a quick ping first. No reply at all
+        // means the helper is unreachable; a nil path means the user cancelled the panel.
+        guard await ping() != nil, let chosen: String? = await HelperChannel.call(timeout: 3600, { helper, done in helper.addFolder(path) { done($0) } }) else {
+            if await restartAfterNoResponse(offer: retry) { return await allowFolder(startingAt: path, retry: false) }
+            return nil
+        }
+        guard let chosen else { return nil }
         await restartHelper(); onChange?()
         NotificationCenter.default.post(name: .madmdMediaAccessChanged, object: nil)
         return chosen

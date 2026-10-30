@@ -9,7 +9,11 @@ enum HelperChannel {
     static let group = "H7B584W2D6.app.madmd"
     static let identifier = "H7B584W2D6.app.madmd.helper"
     static let request = Notification.Name("H7B584W2D6.app.madmd.request")
-    static let requirement = "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\""
+    // Apple re-signs TestFlight and App Store builds with its own certificates, which carry no team OU,
+    // so those are matched by their certificate markers and the bundle identifiers only Apple can sign.
+    static let requirement = "anchor apple generic and (identifier \"app.madmd.mac\" or identifier \"\(identifier)\") and "
+        + "(certificate leaf[subject.OU] = \"\(team)\" or certificate leaf[field.1.2.840.113635.100.6.1.9] exists"
+        + " or certificate leaf[field.1.2.840.113635.100.6.1.25.1] exists)"
 
     static var container: URL? { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) }
     static var cache: URL? { container?.appendingPathComponent("cache", isDirectory: true) }
