@@ -41,7 +41,14 @@ import ServiceManagement
 
     /// Alerts are for actions the user started; a check at launch stays quiet.
     func enable(alerting: Bool = true) async -> Bool {
-        do { try service.register() } catch { if alerting { NSAlert(error: error).runModal() }; return false }
+        do { try service.register() } catch {
+            // With madmd turned off for background activity in Login Items, registering fails with "Operation not permitted".
+            let error = error as NSError
+            let denied = service.status == .requiresApproval || error.code == kSMErrorLaunchDeniedByUser
+                || (error.domain == NSPOSIXErrorDomain && error.code == Int(EPERM))
+            if alerting { if denied { showApprovalNeeded() } else { NSAlert(error: error).runModal() } }
+            return false
+        }
         onChange?()
         if service.status == .requiresApproval { if alerting { showApprovalNeeded() }; return false }
         let running = await waitForHelper()
@@ -74,7 +81,7 @@ import ServiceManagement
     private func showApprovalNeeded() {
         let alert = NSAlert()
         alert.messageText = "Allow madmd in Login Items"
-        alert.informativeText = "Full Previews needs madmd’s helper to run in the background. Turn on madmd in System Settings, then try again."
+        alert.informativeText = "Full Previews needs madmd’s helper to run in the background. Turn on madmd in System Settings under General > Login Items & Extensions, then try again."
         alert.addButton(withTitle: "Open System Settings"); alert.addButton(withTitle: "Cancel")
         if alert.runModal() == .alertFirstButtonReturn { SMAppService.openSystemSettingsLoginItems() }
     }
