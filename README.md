@@ -2,7 +2,7 @@
 
 Select a Markdown file in Finder and press **Space** to preview it. Open it in madmd to edit. macOS 14 or later, Apple silicon and Intel.
 
-<!-- Demo video: paste the github.com/user-attachments link on its own line here. -->
+https://github.com/user-attachments/assets/f158a328-18ac-4f5e-8c25-f28452f67d09
 
 madmd shows tables, task lists, footnotes, alerts, code highlighting, LaTeX math, Mermaid diagrams, GeoJSON and TopoJSON maps, STL models, and images, video, and audio stored on your Mac. It has no account, analytics, or ads, and works offline except for images from the web and map backgrounds. See the [privacy policy](PRIVACY.md).
 
